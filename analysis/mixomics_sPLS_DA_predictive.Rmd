@@ -1,0 +1,204 @@
+---
+title: "Integrative sparse Partial Least Squares Discriminant Analysis multiomics modeling"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction 
+
+**This is an attempt to use the RNA-seq and Proteome data to create a predictive model of COVID severity.**  We will use the sPLS method as before, but with an additional "DA" (discriminant analysis) term. We are interested in evaluating correlations and relationships between the RNA-seq and proteomic data in our 4 covid cohorts (COVID/ICU, COVID/Inpatient, COVID/Outpatient, No-COVID,Inpatient).  We are looking at the two-way integration before attempting the 3-way modeling incorporating the exome data. PLS was designed with a canonical (exploratory) approach and a regression (explanatory) approach in mind. Partial Least Squares – Discriminant Analysis (PLS-DA) was hence developed to allow the powerful PLS algorithm to be used for classification [1, 2]. It performs very similarly to PLS, just that the response vector y contains categorical vectors rather than continuous vectors. PLS-DA has the same advantages that PLS does, such that it operates efficiently over large dataframes and is not negatively influenced by collinearity.
+
+# Methods 
+
+We are following the general pattern in this vignette (http://mixomics.org/methods/spls-da/) and this case study (http://mixomics.org/case-studies/splsda-srbct-case-study/).    
+
+# Analysis 
+
+## Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(mixOmics)
+
+here::i_am("analysis/mixomics_sPLS_DA_predictive.Rmd")
+```
+
+## Load data 
+
+```{r}
+
+rna <- readr::read_csv(here("data","munged_data","rnaseq_samples_in_rows_normalized.csv"))
+prot <- readr::read_csv(here("data","munged_data","proteomics_PLAS_ONLY_samples_in_rows_norm_NAMEFIX.csv"))
+meta <- readr::read_csv(here("data","munged_data","metadata_masterkey.csv"))
+```
+
+## Wrangle metadata
+
+Make the sample names match.  Not all samples specified in the metadata are found in the datafiles.  
+
+```{r}
+new_name <- rna$name %>% str_split(., pattern="-", simplify = TRUE) %>% paste0("RL_SARS_",.)
+new_name <- new_name[1:80]
+rna$sample_ID <- new_name 
+
+prot <- prot %>% rename(sample_ID=Assay)
+
+### There are 76 of 168 total proteomic datasets (we are excluding saliva datasets from consideration which is the reason for the mismatch)
+sum(prot$sample_ID %in% meta$sample_ID)
+
+###  There are 70 of 100 RNAseq files specified in meta (I don't know where the missing 30 files are)
+sum(rna$sample_ID %in% meta$sample_ID)
+
+### There are 30 samples listed in metadata NOT found among the RNA data files 
+sum(meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID)
+
+## These missing samples are: 
+missing <- meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID
+no_RNA_data <- meta[meta$sample_type=="RNA",] %>% filter(!missing)
+no_RNA_data$sample_ID
+
+### Each data table needs a "master key" to determine sample of origin, without regards to data type 
+master_key_dict <- meta %>% dplyr::select(c(sample_ID, master_key))
+prot2 <- left_join(prot, master_key_dict, by="sample_ID") %>% drop_na()
+rna2 <- left_join(rna, master_key_dict, by="sample_ID")
+
+### We are missing some data...need to confirm with Ryan lab 
+intersect(prot2$master_key, rna2$master_key)
+setdiff(prot2$master_key, rna2$master_key)
+
+## Note: 
+## RNA files for 5.7 through 7.1 are in 'Auto_user_GSS5PR-0221-28-first_RNA_run_198.mean_hk_scaled_log2_count.xls'
+## Need to edit RNA munging to include these and find location on samples 25-29, 30-34,... etc... 
+```
+
+
+### Convert data tables to named matrices 
+
+```{r}
+match <- intersect(prot2$master_key, rna2$master_key)
+prot3 <- prot2[prot2$master_key %in% match,] %>% dplyr::select(-c(sample_ID)) %>% as.data.frame()
+rownames(prot3) <- prot3$master_key
+prot3 <- prot3 %>% dplyr::select(-master_key)
+
+rna3 <- rna2[rna2$master_key %in% match,] %>% dplyr::select(-c(name, sample_ID)) %>% as.data.frame()
+rownames(rna3) <- rna3$master_key
+rna3 <- rna3 %>% dplyr::select(-master_key)
+
+## check dimensions match 
+dim(rna3)
+dim(prot3)
+
+## The metadata categories are the same whether RNA or Plasma 
+meta_3 <- meta_3 <- meta[meta$master_key %in% match & meta$sample_type=="RNA",]
+
+## Sanity check 
+rownames(rna3) == meta_3$master_key
+rownames(prot3) == meta_3$master_key
+```
+
+### Initial sPLS-DA model 
+
+For starters, we'll include the COVID NEG samples just to see how the model looks: 
+
+```{r}
+spls.da.rna.covid <- splsda(X=rna3, Y=meta_3$cohort_status, ncomp=10)
+spls.da.pro.covid <- splsda(X=prot3, Y=meta_3$cohort_status, ncomp=10)
+
+```
+
+```{r}
+# plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
+plotIndiv(spls.da.rna.covid , comp = 1:2, 
+          group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'RNA-seq PLSDA with confidence ellipses')
+
+
+plotIndiv(spls.da.pro.covid , comp = 1:2, 
+          group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background = background.predict(spls.da.rna.covid, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+plotIndiv(spls.da.rna.covid, comp = 1:2,
+          group = meta_3$cohort_status, ind.names = FALSE, # colour points by class
+          background = background, # include prediction background for each class
+          legend = TRUE, title = " (b) PLSDA with prediction background")
+```
+
+### sPLS-DA without the COVID NEG samples 
+
+```{r}
+mask <- meta_3$covid_status != "NEG"
+rna4 <- rna3[mask,]
+prot4 <- prot3[mask,]
+meta_4 <- meta_3[mask,]
+
+## check dimensions match 
+dim(rna4)
+dim(prot4)
+
+## Sanity check 
+rownames(rna4) == meta_4$master_key
+rownames(prot4) == meta_4$master_key
+```
+
+```{r}
+
+spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status, ncomp=10)
+spls.da.pro.covid <- splsda(X=prot4, Y=meta_4$cohort_status, ncomp=10)
+
+# plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
+plotIndiv(spls.da.rna.covid , comp = 1:2, 
+          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'RNA-seq PLSDA with confidence ellipses')
+
+
+plotIndiv(spls.da.pro.covid , comp = 1:2, 
+          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
+          ellipse = TRUE, # include 95% confidence ellipse for each class
+          legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background_rna = background.predict(spls.da.rna.covid, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+plotIndiv(spls.da.rna.covid, comp = 1:2,
+          group = meta_4$cohort_status, ind.names = TRUE, # colour points by class
+          background = background_rna, # include prediction background for each class
+          legend = TRUE, title = " RNA-seq PLSDA with prediction background")
+
+
+background_pro = background.predict(spls.da.pro.covid, comp.predicted=2, dist = "max.dist")
+plotIndiv(spls.da.pro.covid, comp = 1:2,
+          group = meta_4$cohort_status, ind.names = TRUE, # colour points by class
+          background = background_pro, # include prediction background for each class
+          legend = TRUE, title = " Proteome PLSDA with prediction background")
+
+```
+
+NB: "s22_day1" is an outlier for the COVID POS Inpatient cohort in Proteomics, "s24_day1" is an outlier for RNA-seq.  
+
+```{r}
+
+
+
+```
+
