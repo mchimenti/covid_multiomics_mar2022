@@ -1,0 +1,12 @@
+
+*.html
+*.xlsx
+*.zip
+*.xls
+*.chp
+*.tsv
+*.png
+data/.DS_Store
+analysis/.DS_Store
+.DS_Store
+*.pdf

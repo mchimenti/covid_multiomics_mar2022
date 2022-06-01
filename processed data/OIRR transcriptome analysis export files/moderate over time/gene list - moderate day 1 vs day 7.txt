@@ -1,0 +1,21 @@
+#%result_name=Cohort 3 over time
+#%array_type=Immune-response
+#%annotation=Immune-response.transcript.csv
+#%comparison=1 vs 7
+ID	1 Avg (log2)	7 Avg (log2)	Fold Change	P-val	FDR P-val	Gene Symbol	Description
+RPS6_124229	22.89	25.26	-5.17	0.0025	0.4638	RPS6	ribosomal_protein_S6
+KLRB1_177284	18.84	21.48	-6.22	0.0031	0.4638	KLRB1	killer_cell_lectin-like_receptor_subfamily_B_member_1
+CD52_70175	22.58	24.9	-5.02	0.0035	0.4638	CD52	CD52_molecule
+CD3D_400503	20.22	22.74	-5.72	0.0060	0.6007	CD3D	CD3d_molecule_delta_CD3-TCR_complex
+SH2D1A_540642	18.52	21.01	-5.59	0.0090	0.6301	SH2D1A	SH2_domain_containing_1A
+GZMA_165265	20.5	22.9	-5.28	0.0095	0.6301	GZMA	granzyme_A_granzyme_1_cytotoxic_T-lymphocyte-associated_serine_esterase_3
+CD1C_12531357	15.34	17.9	-5.91	0.0130	0.7349	CD1C	CD1c_molecule
+GAGE12J_144260	10.66	14.18	-11.52	0.0148	0.7349	GAGE12J	G_antigen_12J
+GZMK_178286	18.9	21.42	-5.75	0.0174	0.7676	GZMK	granzyme_K_granzyme_3_tryptase_II
+CD69_195303	18.06	19.92	-3.62	0.0213	0.8487	CD69	CD69_molecule
+IFNG_400500	14.2	16.75	-5.85	0.0263	0.8661	IFNG	interferon_gamma
+CXCL8_197302	18.6	21.23	-6.21	0.0283	0.8661	CXCL8	C-X-C_motif_chemokine_ligand_8
+SNAI1_138246	14.29	12.18	4.29	0.0283	0.8661	SNAI1	snail_family_zinc_finger_1
+KLRK1_698804	20.37	22.92	-5.86	0.0386	0.9253	KLRK1	killer_cell_lectin-like_receptor_subfamily_K_member_1
+ID2_579679	20.44	21.66	-2.33	0.0430	0.9253	ID2	inhibitor_of_DNA_binding_2_dominant_negative_helix-loop-helix_protein
+ICOS_382487	17.26	19.47	-4.62	0.0474	0.9253	ICOS	inducible_T-cell_co-stimulator

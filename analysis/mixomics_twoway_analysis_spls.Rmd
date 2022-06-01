@@ -1,0 +1,364 @@
+---
+title: "Integrative sparse Partial Least Squares multiomics modeling"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction 
+
+We are interested in evaluating correlations and relationships between the RNA-seq and proteomic data in our 4 covid cohorts (COVID/ICU, COVID/Inpatient, COVID/Outpatient, No-COVID,Inpatient).  We are looking at the two-way integration before attempting the 3-way modeling incorporating the exome data.  We are going to apply here the 'sPLS' method of the 'mixOmics" package
+
+Partial Least Squares (or Projection to Latent Space – PLS) and its sparse variant (sPLS) is a linear, multivariate visualisation technique for integratable datasets. It overcomes the shortcomings of related methods, such as PCA and CCA, in various Omics contexts. In this study, a PLS2 method will be used.  Here we will be using sPLS in "canonical" mode rather than "regression" mode because we do not seek to predict the proteomic data from the RNA-seq data, rather just to find all correlated groups of features that describe the data and separate the cohorts.  
+
+# Methods 
+
+We are following the general pattern in this case study (http://mixomics.org/case-studies/spls-liver-toxicity-case-study/) and in this vignette (http://mixomics.org/methods/spls/).   
+
+# Analysis 
+
+## Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(mixOmics)
+
+
+```
+## Load data 
+
+```{r}
+
+rna <- readr::read_csv(here("data","munged_data","rnaseq_samples_in_rows_normalized.csv"))
+prot <- readr::read_csv(here("data","munged_data","proteomics_PLAS_ONLY_samples_in_rows_norm_NAMEFIX.csv"))
+meta <- readr::read_csv(here("data","munged_data","metadata_masterkey.csv"))
+```
+
+## Wrangle metadata
+
+Make the sample names match.  Not all samples specified in the metadata are found in the datafiles.  
+
+```{r}
+new_name <- rna$name %>% str_split(., pattern="-", simplify = TRUE) %>% paste0("RL_SARS_",.)
+new_name <- new_name[1:80]
+rna$sample_ID <- new_name 
+
+prot <- prot %>% rename(sample_ID=Assay)
+
+### There are 76 of 168 total proteomic datasets (we are excluding saliva datasets from consideration which is the reason for the mismatch)
+sum(prot$sample_ID %in% meta$sample_ID)
+
+###  There are 70 of 100 RNAseq files specified in meta (I don't know where the missing 30 files are)
+sum(rna$sample_ID %in% meta$sample_ID)
+
+### There are 30 samples listed in metadata NOT found among the RNA data files 
+sum(meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID)
+
+## These missing samples are: 
+missing <- meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID
+no_RNA_data <- meta[meta$sample_type=="RNA",] %>% filter(!missing)
+no_RNA_data$sample_ID
+
+### Each data table needs a "master key" to determine sample of origin, without regards to data type 
+master_key_dict <- meta %>% dplyr::select(c(sample_ID, master_key))
+prot2 <- left_join(prot, master_key_dict, by="sample_ID") %>% drop_na()
+rna2 <- left_join(rna, master_key_dict, by="sample_ID")
+
+### We are missing some data...need to confirm with Ryan lab 
+intersect(prot2$master_key, rna2$master_key)
+setdiff(prot2$master_key, rna2$master_key)
+
+## Note: 
+## RNA files for 5.7 through 7.1 are in 'Auto_user_GSS5PR-0221-28-first_RNA_run_198.mean_hk_scaled_log2_count.xls'
+## Need to edit RNA munging to include these and find location on samples 25-29, 30-34,... etc... 
+```
+
+
+### Convert data tables to named matrices 
+
+```{r}
+match <- intersect(prot2$master_key, rna2$master_key)
+prot3 <- prot2[prot2$master_key %in% match,] %>% dplyr::select(-c(sample_ID)) %>% as.data.frame()
+rownames(prot3) <- prot3$master_key
+prot3 <- prot3 %>% dplyr::select(-master_key)
+
+rna3 <- rna2[rna2$master_key %in% match,] %>% dplyr::select(-c(name, sample_ID)) %>% as.data.frame()
+rownames(rna3) <- rna3$master_key
+rna3 <- rna3 %>% dplyr::select(-master_key)
+
+## check dimensions match 
+dim(rna3)
+dim(prot3)
+
+## The metadata categories are the same whether RNA or Plasma 
+meta_3 <- meta_3 <- meta[meta$master_key %in% match & meta$sample_type=="RNA",]
+
+## Sanity check 
+rownames(rna3) == meta_3$master_key
+rownames(prot3) == meta_3$master_key
+```
+
+## PCA analysis 
+
+Looks like 5 pr comp will capture most variance in both datasets. 
+
+```{r}
+pca.gene <- mixOmics::pca(rna3, ncomp=10, center=TRUE,scale=TRUE)
+pca.prot <- mixOmics::pca(prot3, ncomp=10, center=TRUE, scale=TRUE)
+
+plot(pca.gene)
+plot(pca.prot)
+```
+
+### Transciptomics PCA 
+
+```{r}
+plotIndiv(pca.gene, comp = c(1, 2), 
+          group = meta_3$covid_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Covid Status RNA-seq, PCA comp 1 - 2')
+
+plotIndiv(pca.gene, comp = c(1, 2), 
+          group = meta_3$hospital_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Hospital Status RNA-seq, PCA comp 1 - 2')
+
+plotIndiv(pca.gene, comp = c(1, 2), 
+          group = meta_3$cohort_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Covid gene, PCA comp 1 - 2')
+
+plotIndiv(pca.gene, comp = c(1, 3), 
+          group = meta_3$cohort_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Covid gene, PCA comp 1 - 3')
+
+
+plotIndiv(pca.gene, comp = c(1, 2), 
+          group = meta_3$ethnicity, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Covid gene, PCA comp 1 - 2')
+
+plotIndiv(pca.gene, comp = c(1, 2), 
+          group = meta_3$sex, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Covid gene, PCA comp 1 - 2')
+```
+
+### Proteomics PCA 
+
+```{r}
+plotIndiv(pca.prot, comp = c(1, 2), 
+          group = meta_3$hospital_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Hospital Status Proteomics, PCA comp 1 - 2')
+
+plotIndiv(pca.prot, comp = c(1, 2), 
+          group = meta_3$covid_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'COVID Status Proteomics, PCA comp 1 - 2')
+
+plotIndiv(pca.prot, comp = c(1, 3), 
+          group = meta_3$covid_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'COVID Status Proteomics, PCA comp 1 - 3')
+
+plotIndiv(pca.prot, comp = c(1, 2), 
+          group = meta_3$cohort_status, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Cohort Status Proteomics, PCA comp 1 - 2')
+
+plotIndiv(pca.prot, comp = c(1, 2), 
+          group = meta_3$ethnicity, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Race Proteomics, PCA comp 1 - 2')
+
+plotIndiv(pca.prot, comp = c(1, 2), 
+          group = meta_3$sex, 
+          ind.names = meta_3$master_key, 
+          legend = TRUE, title = 'Sex Proteomics, PCA comp 1 - 2')
+```
+
+## The sPLS integrative model 
+
+In this section, we will create and tune an sparse-partial-least-squares (sPLS) model to capture the covariance of features (genes, proteins) in the two 'omics datasets on the samples that are in common.  We will run in "canonical" mode since we are not trying to predict one dataset from the other, but rather find correlation between them.  
+
+## sPLS model parameter tuning
+
+### Tuning number of prin comp to use
+
+```{r}
+spls.covid <- spls(X = rna3, Y = prot3, ncomp = 5, mode = "canonical")
+
+# repeated CV tuning of component count
+perf.spls.covid <- perf(spls.covid, validation = 'Mfold',
+                         folds = 10, nrepeat = 5) 
+
+plot(perf.spls.covid, criterion = 'Q2.total')
+```
+We could use 1 or at most 2 principal components in the model.  
+
+### Tuning number of features to keep 
+
+```{r}
+# set range of test values for number of variables to use from X dataframe
+list.keepX <- c(seq(20, 50, 5))
+# set range of test values for number of variables to use from Y dataframe
+list.keepY <- c(3:10) 
+
+
+tune.spls.covid <- tune.spls(X = rna3, Y = prot3, ncomp = 2,
+                              test.keepX = list.keepX,
+                              test.keepY = list.keepY,
+                              nrepeat = 1, folds = 10, # use 10 folds
+                              mode = 'canonical', measure = 'cor') 
+
+plot(tune.spls.covid)         # use the correlation measure for tuning
+```
+```{r}
+
+tune.spls.covid$choice.keepX
+tune.spls.covid$choice.keepY
+
+optimal.keepX = 20
+optimal.keepY = 10
+optimal.ncomp = 2
+```
+
+We will use ncomp=2 & keepX=20 & keepY = 10. 
+
+## Final sPLS model after tuning 
+
+Here we create the working model using the optimal params from above: 
+
+```{r}
+# use all tuned values from above
+final.spls.covid <- spls(X = rna3, Y = prot3, ncomp = optimal.ncomp, 
+                    keepX = optimal.keepX,
+                    keepY = optimal.keepY,
+                    mode = "canonical") 
+```
+
+# Results 
+
+## Visualization of final sPLS model
+
+### Individual samples PCA on shared latent variables 
+
+Here, we are looking at PCA but it is projected on shared latent variables calculated from the integration of both datasets (this is different from the PCA plots above). 
+
+```{r}
+plotIndiv(final.spls.covid, ind.names = meta_3$master_key, 
+         rep.space = "X-variate", # plot in X-variate subspace
+         group = meta_3$hospital_status, # color by hospital status
+         pch = as.factor(meta_3$covid_status), 
+         col.per.group = color.mixo(1:3), 
+         legend = TRUE, legend.title = 'Hospitalization', legend.title.pch = 'Covid')
+
+plotIndiv(final.spls.covid, ind.names = meta_3$master_key, 
+         rep.space = "Y-variate", # plot in X-variate subspace
+         group = meta_3$hospital_status, # color by hospital status
+         pch = as.factor(meta_3$covid_status), 
+         col.per.group = color.mixo(1:3), 
+         legend = TRUE, legend.title = 'Hospitalization', legend.title.pch = 'Covid')
+
+```
+
+```{r}
+plotIndiv(final.spls.covid, 
+         rep.space = "XY-variate", # plot in X-variate subspace
+         group = meta_3$hospital_status, # color by hospital status
+         pch = as.factor(meta_3$covid_status), 
+         col.per.group = color.mixo(1:3), 
+         legend = TRUE, legend.title = 'Hospitalization', legend.title.pch = 'Covid')
+```
+
+### Arrow plot 
+
+This plot shows how samples relate to each other from gene > protein datasets.  Short arrow means a sample for which the gene and protein datasets are close together in the shared latent variable space.  Longer arrows is a sample that has more distance between gene and protein data (the data vary more over the shared variable space). 
+
+```{r}
+plotArrow(final.spls.covid, ind.names = FALSE,
+          group = meta_3$cohort_status,
+          col.per.group = color.mixo(1:4),
+          legend.title = 'Cohort.Group')
+```
+
+### Correlation circle plot 
+
+Highly correlated features that correlate with the two latent variables are plotted here.  These are genes/proteins that are responsible for a lot of the covariance in the data.  
+
+```{r, fig.width=9, fig.height=9, dpi=300}
+plotVar(final.spls.covid, 
+        cex = c(3,3), 
+        var.names = c(TRUE, TRUE), 
+        cutoff = 0.75,
+        style='ggplot2', legend = TRUE)
+```
+
+### Network structure plot 
+
+```{r}
+color.edge <- color.jet(100)  # set the colours of the connecting lines
+
+# X11() # To open a new window for Rstudio
+network(final.spls.covid, comp = 1,
+        cutoff = 0.8, 
+        shape.node = c("rectangle", "circle"),
+        color.node = c("cyan", "pink"),
+        color.edge = color.edge,
+        lwd.edge = c(2,2),
+        save = 'png', 
+        name.save = here('images','sPLS Covid Hospital Status Network Plot'))
+        
+```
+
+```{r img-with-knitr1, echo=FALSE, fig.align='center', out.width='100%', fig.cap='Caption for this figure 1'}
+knitr::include_graphics(here("images","sPLS Covid Hospital Status Network Plot.png"))
+```
+
+### Feature Correlation Heatmap ("CIM")
+
+When using the cim() in an integrative context, the resulting heatmap represents the correlation between a given pair of features, one from each dataset.
+
+This type of CIM represents the correlation structure extracted from the two datasets. The correlation of each original feature pair is determined by each of their correlation with the components from the integrative method. Blocks of homogeneous color depict subsets of features from each dataset which are correlated and suggests a potential causal relationship.
+
+```{r}
+
+cim(final.spls.covid, comp = 1:2, 
+    xlab = "proteins", ylab = "genes", 
+    cutoff = 0.6,
+    save = "png", name.save = here("images","heatmap_network_substructure"))
+```
+
+For technical reasons, this image must be saved to file first.  
+
+```{r img-with-knitr2, echo=FALSE, fig.align='center', out.width='100%', fig.cap='Feature Heatmap for sPLS Final Model'}
+knitr::include_graphics(here("images","heatmap_network_substructure.png"))
+```
+
+# Conclusions
+
+Both the RNAseq and proteomic data appear to discriminate severe COVID from outpatient or negative covid individually, with the proteomic data having a larger effect size. And this effect is more dramatic when performing sPLS to map the datasets into a shared parameter space.  This new X/Y space allows for even better separation of cohorts and suggests that efforts to build a predictive model using this data (and exome data) may be successful.  
+
+The network plot and heatmap plot show blocks of correlated features (genes/proteins) that play important and possibly causitive roles in determining cohort status (ICU, Inpatient, Outpatient) with regards to COVID infection.  
+
+```{r}
+sessionInfo()
+```
+
+
+
+

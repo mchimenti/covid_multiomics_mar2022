@@ -1,0 +1,36 @@
+#%result_name=Analysis_1
+#%array_type=Immune-response
+#%annotation=Immune-response.transcript.csv
+#%comparison=1 vs 3
+ID	1 Avg (log2)	3 Avg (log2)	Fold Change	P-val	FDR P-val	Gene Symbol	Description
+CSF1R_19612067	17.98	19.2	-2.34	7.20E-06	0.0015	CSF1R	colony_stimulating_factor_1_receptor
+HLA-DPA1_129237	21.41	23.33	-3.76	8.85E-06	0.0015	HLA-DPA1	major_histocompatibility_complex_class_II_DP_alpha_1
+HLA-DMB_854962	14.6	18.02	-10.75	1.16E-05	0.0015	HLA-DMB	major_histocompatibility_complex_class_II_DM_beta
+KLRG1_410518	18.4	19.81	-2.67	3.06E-05	0.0020	KLRG1	killer_cell_lectin-like_receptor_subfamily_G_member_1
+GZMK_178286	17.31	18.94	-3.11	3.08E-05	0.0020	GZMK	granzyme_K_granzyme_3_tryptase_II
+IL2RB_9991107	19.17	20.37	-2.3	3.13E-05	0.0020	IL2RB	interleukin_2_receptor_beta
+ARG1_174278	20.71	18.29	5.37	3.57E-05	0.0020	ARG1	arginase_1
+SH2D1A_540642	17.24	18.7	-2.76	0.0001	0.0062	SH2D1A	SH2_domain_containing_1A
+ZAP70_673781	18.52	19.77	-2.37	0.0002	0.0075	ZAP70	zeta-chain_TCR_associated_protein_kinase_70kDa
+CX3CR1_35133	18.29	19.69	-2.64	0.0002	0.0083	CX3CR1	CX3C_chemokine_receptor_1_isoform_a
+CD8B_403510	18.14	19.58	-2.72	0.0003	0.0089	CD8B	CD8b_molecule
+CCR5_85193	17.11	18.37	-2.38	0.0003	0.0097	CCR5	chemokine_C-C_motif_receptor_5_gene_pseudogene
+IFNA17_691788	13.7	10.79	7.49	0.0003	0.0098	IFNA17	interferon_alpha_17
+TBX21_9251036	18.39	19.76	-2.58	0.0004	0.0098	TBX21	T-box_21
+CD4_147255	19.44	20.81	-2.58	0.0004	0.0098	CD4	CD4_molecule
+CCNB2_9861095	18	16.86	2.2	0.0005	0.0108	CCNB2	cyclin_B2
+FASLG_417521	16.44	17.51	-2.1	0.0006	0.0111	FASLG	Fas_ligand_TNF_superfamily_member_6
+KLRD1_515619	19.38	20.67	-2.44	0.0010	0.0175	KLRD1	killer_cell_lectin-like_receptor_subfamily_D_member_1
+GNLY_251357	21.57	22.96	-2.62	0.0011	0.0175	GNLY	granulysin
+MAD2L1_115221	17.64	16.63	2.01	0.0013	0.0203	MAD2L1	MAD2_mitotic_arrest_deficient-like_1_yeast
+TIGIT_383491	17.23	18.56	-2.52	0.0018	0.0242	TIGIT	T_cell_immunoreceptor_with_Ig_and_ITIM_domains
+CD2_350452	20.15	21.42	-2.41	0.0018	0.0242	CD2	CD2_molecule
+CD8A_14271531	19.53	20.78	-2.38	0.0018	0.0242	CD8A	CD8a_molecule
+TOP2A_27522855	17.77	16.71	2.09	0.0020	0.0251	TOP2A	topoisomerase_DNA_II_alpha_170kDa
+KLRB1_177284	17.93	19.05	-2.16	0.0020	0.0251	KLRB1	killer_cell_lectin-like_receptor_subfamily_B_member_1
+CMKLR1_36143	12.58	13.64	-2.07	0.0031	0.0293	CMKLR1	chemokine-like_receptor_1
+IFNB1_579686	13.93	12.04	3.7	0.0033	0.0303	IFNB1	interferon_beta_1_fibroblast
+TLR7_99206	18.19	19.21	-2.03	0.0040	0.0354	TLR7	toll-like_receptor_7
+GPR18_238340	16.9	18.01	-2.16	0.0052	0.0407	GPR18	G_protein-coupled_receptor_18
+ICOS_382487	16.42	17.52	-2.14	0.0060	0.0442	ICOS	inducible_T-cell_co-stimulator
+TCF7_677799	19.89	20.92	-2.05	0.0072	0.0496	TCF7	transcription_factor_7_isoform_1

@@ -1,0 +1,57 @@
+---
+title: "Import and Tidy Proteomic Data: Ryan Multiomics"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+
+```
+
+
+Message from Dr. Ryan: 
+IGNORE THE SALIVA THE DATA WAS NOT GOOD AND TAKE ONLY DAY 1 SAMPLES FOR THE TIMEPOINT FOR FIRST PASS
+
+```{r}
+olink_raw <- readxl::read_excel(here("data","proteomics","COVID AI proteomics data batch normalized (Olink format).xlsx"),
+                                skip=3, col_names = TRUE, col_types = c("text",rep("numeric",188)))
+
+olink_raw <- olink_raw[4:136,1:185]
+write.csv(x = olink_raw, file = here("data","munged_data","proteomics_samples_in_rows_normalized.csv"))
+
+olink_plas <- olink_raw %>% filter(grepl('PLAS', Assay))
+
+## samples 11-20 and 31-40 are missing the "day 1" pattern at the end.  
+
+## Find and fix the names
+fixed_names <- olink_plas$Assay %>% str_subset(., pattern='\\.', negate=TRUE) %>% str_c(., "1", sep='.')
+## Find the row mask 
+names_to_fix <- olink_plas$Assay %>% grep(., pattern='\\.', invert=TRUE)
+## Use rowmask to sub in the fixed names 
+olink_plas$Assay[names_to_fix] <- fixed_names
+
+write_csv(x = olink_plas, file = here("data","munged_data","proteomics_PLAS_ONLY_samples_in_rows_norm_NAMEFIX.csv"))
+```
+
+
+
+```{r}
+sessionInfo()
+```
+

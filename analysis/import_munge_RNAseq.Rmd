@@ -1,0 +1,95 @@
+---
+title: "Import and Tidy Transcriptomic Data: Ryan Multiomics"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+# Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+
+```
+
+# Data Import 
+
+According to the sPLS/DIABLO documentation for mixOmics, the data need to be normalized and imported as samples in rows, features in columns format.  
+
+## Raw counts 
+
+```{r, eval=FALSE}
+samples_1.1_3.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-38-RNA_samples_1.1-3.3_208.bcmatrix.xls"), delim = '\t')
+samples_3.5_5.5 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-39-RNA_samples_3.5-5.5_209.bcmatrix.xls"), delim = '\t')
+samples_8.1_14.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-29-RNA_samples_8.1-14.1_199.bcmatrix.xls"), delim = '\t')
+samples_15.1_22.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-30-RNA_samples_15.1-22.1_200.bcmatrix.xls"), delim = '\t')
+samples_22.2_25.7 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-31-RNA_samples_22.2-25.7_201.bcmatrix.xls"), delim = '\t')
+samples_35.1_41.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-34-RNA_samples_35.1-41.3_204.bcmatrix.xls"), delim = '\t')
+samples_42.3_46.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-35-RNA_samples_42.3-46.3_205.bcmatrix.xls"), delim = '\t')
+samples_46.7_53.5 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-36-RNA_samples_46.7-53.5_206.bcmatrix.xls"), delim = '\t')
+samples_54.3_64.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-37-RNA_samples_54.3-64.1_207.bcmatrix.xls"), delim = '\t')
+samples_65.1_68.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-40-RNA_samples_65.1-68.1_w_extras_210.bcmatrix.xls"), delim = '\t')
+
+```
+## Housekeeping scaled, log2 Normalized counts 
+
+```{r}
+samples_1.1_3.3 <-   readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-38-RNA_samples_1.1-3.3_208.mean_hk_scaled_log2_count.xls"), delim ='\t', col_select = c(1,3:10) )
+samples_3.5_5.5 <-   readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-39-RNA_samples_3.5-5.5_209.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_8.1_14.1 <-  readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-29-RNA_samples_8.1-14.1_199.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_15.1_22.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-30-RNA_samples_15.1-22.1_200.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_22.2_25.7 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-31-RNA_samples_22.2-25.7_201.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_35.1_41.3 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-34-RNA_samples_35.1-41.3_204.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_42.3_46.3 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-35-RNA_samples_42.3-46.3_205.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_46.7_53.5 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-36-RNA_samples_46.7-53.5_206.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_54.3_64.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-37-RNA_samples_54.3-64.1_207.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_65.1_68.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-40-RNA_samples_65.1-68.1_w_extras_210.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+```
+
+
+```{r}
+
+## this function only works if there are no duplicate gene names 
+df_transpose <- function(df) {
+  df %>%
+    tidyr::pivot_longer(cols = -Gene) %>%
+    tidyr::pivot_wider(names_from = Gene, values_from = value)
+}
+
+
+set <- list(samples_1.1_3.3, samples_3.5_5.5, samples_8.1_14.1, samples_15.1_22.1, 
+          samples_22.2_25.7, samples_35.1_41.3, samples_42.3_46.3, samples_46.7_53.5, 
+          samples_54.3_64.1, samples_65.1_68.1)
+
+for (i in seq_along(set)) {
+  set[[i]]$Gene[4:6] <- c("CX3CR1_A","CX3CR1_B","CX3CR1_C")
+  set[[i]] <- df_transpose(set[[i]])
+}
+
+df <- dplyr::bind_rows(set)
+head(df)
+
+```
+
+
+```{r}
+#readr::write_csv(x = df, file = here("data","munged_data","rnaseq_allsamples_rawcounts.csv"))
+readr::write_csv(x = df, file = here("data","munged_data","rnaseq_samples_in_rows_normalized.csv"))
+```
+
+```{r}
+sessionInfo()
+```
+
+

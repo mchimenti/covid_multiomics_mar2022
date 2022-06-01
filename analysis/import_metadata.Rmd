@@ -1,0 +1,45 @@
+---
+title: "Import and Tidy Metadata: Ryan Multiomics"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+
+```
+
+```{r}
+meta <- readr::read_csv(file=here("metadata", "COVID seq patient metadata MSC edit.csv"))
+meta <- meta %>% 
+  fill(c("patient_ID_orig","patient_ID_ryanlab","ethnicity","age","sex","comorbidities")) %>% 
+  filter(sample_ID != 'NA') %>%
+  dplyr::select(-...12) %>% 
+  mutate(data_type = case_when(sample_type == "saliva" ~ "Proteomic",
+                               sample_type == "plasma" ~ "Proteomic",
+                               sample_type == "RNA" ~ "RNAseq",
+                               sample_type == "DNA" ~ "Exome")) %>%
+  mutate(master_key = paste0("s",patient_ID_ryanlab,"_day",day))
+
+meta
+```
+
+```{r}
+write.csv(meta, file=(here("data","munged_data","metadata_masterkey.csv")))
+```
+

@@ -1,0 +1,23 @@
+#%result_name=Analysis_1
+#%array_type=Immune-response
+#%annotation=Immune-response.transcript.csv
+#%comparison=3: N vs Y
+ID	3: N Avg (log2)	3: Y Avg (log2)	Fold Change	P-val	FDR P-val	Gene Symbol	Description
+NECTIN2_13881496	18.37	15.38	7.91	0.0017	0.3567	NECTIN2	nectin_cell_adhesion_molecule_2
+ISG15_66173	22.04	19.64	5.25	0.0018	0.3567	ISG15	ISG15_ubiquitin-like_modifier
+IFI6_47156	23.8	21.79	4.03	0.0032	0.3927	IFI6	interferon_alpha-inducible_protein_6
+JCHAIN_134238	17.5	21.75	-18.97	0.0041	0.3927	JCHAIN	joining_chain_of_multimeric_IgA_and_IgM
+IFIT3_72174	22.19	20	4.56	0.0053	0.3927	IFIT3	interferon-induced_protein_with_tetratricopeptide_repeats_3
+CXCL10_354459	16.79	14.92	3.66	0.0064	0.3927	CXCL10	chemokine_C-X-C_motif_ligand_10
+IFIT1_158259	22.65	19.99	6.33	0.0069	0.3927	IFIT1	interferon-induced_protein_with_tetratricopeptide_repeats_1
+IFI44L_12771376	21.75	18.89	7.28	0.0130	0.5530	IFI44L	interferon-induced_protein_44-like
+HLA-B_639746	24.58	15.04	746.79	0.0177	0.5872	HLA-B	major_histocompatibility_complex_class_I_B
+TNFRSF17_254359	14.89	17.05	-4.45	0.0195	0.5961	TNFRSF17	tumor_necrosis_factor_receptor_superfamily_member_17
+OAS1_757865	22.49	20.76	3.3	0.0223	0.6328	OAS1	2p-5p-oligoadenylate_synthetase_1_40_46kDa
+MX1_232336	22	20.53	2.78	0.0261	0.6339	MX1	myxovirus_influenza_virus_resistance_1_interferon-inducible_protein_p78_mouse
+CMKLR1_36143	15.09	13.37	3.28	0.0300	0.6353	CMKLR1	chemokine-like_receptor_1
+POU2AF1_230337	18.52	20.06	-2.91	0.0309	0.6353	POU2AF1	POU_class_2_associating_factor_1
+CXCL11_261361	13.6	11.47	4.39	0.0319	0.6353	CXCL11	chemokine_C-X-C_motif_ligand_11
+LAMP3_12361344	15.31	13.78	2.9	0.0343	0.6495	LAMP3	lysosomal-associated_membrane_protein_3
+S100A8_239334	25.62	24.26	2.57	0.0359	0.6495	S100A8	S100_calcium_binding_protein_A8
+C1QB_111199	19.07	17.39	3.2	0.0453	0.7520	C1QB	complement_component_1_q_subcomponent_B_chain
