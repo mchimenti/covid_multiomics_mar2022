@@ -161,8 +161,8 @@ rownames(prot4) == meta_4$master_key
 
 ```{r}
 
-spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status, ncomp=10)
-spls.da.pro.covid <- splsda(X=prot4, Y=meta_4$cohort_status, ncomp=10)
+spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status, ncomp=3, keepX = 15)
+spls.da.pro.covid <- splsda(X=prot4, Y=meta_4$cohort_status, ncomp=3, keepX = 15)
 
 # plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
 plotIndiv(spls.da.rna.covid , comp = 1:2, 
@@ -175,6 +175,17 @@ plotIndiv(spls.da.pro.covid , comp = 1:2,
           group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
           ellipse = TRUE, # include 95% confidence ellipse for each class
           legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
+
+#plotIndiv(spls.da.rna.covid , comp = c(1,3), 
+#          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
+#          ellipse = TRUE, # include 95% confidence ellipse for each class
+#          legend = TRUE, title = 'RNA-seq PLSDA with confidence ellipses')
+
+
+#plotIndiv(spls.da.pro.covid , comp = c(1,3), 
+#          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
+#          ellipse = TRUE, # include 95% confidence ellipse for each class
+#          legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
 
 # use the max.dist measure to form decision boundaries between classes based on PLS-DA data
 background_rna = background.predict(spls.da.rna.covid, comp.predicted=2, dist = "max.dist")
@@ -196,9 +207,85 @@ plotIndiv(spls.da.pro.covid, comp = 1:2,
 
 NB: "s22_day1" is an outlier for the COVID POS Inpatient cohort in Proteomics, "s24_day1" is an outlier for RNA-seq.  
 
-```{r}
+### Tuning the model 
 
+```{r}
+# undergo performance evaluation in order to tune the number of components to use
+perf.splsda.rna <- perf(spls.da.rna.covid, validation = "Mfold", 
+                          folds = 5, nrepeat = 10, # use repeated cross-validation
+                          progressBar = TRUE, auc = TRUE) # include AUC values
+
+# plot the outcome of performance evaluation across all ten components
+plot(perf.splsda.rna, col = color.mixo(5:7), sd = TRUE,
+     legend.position = "horizontal")
+
+# undergo performance evaluation in order to tune the number of components to use
+perf.splsda.pro <- perf(spls.da.pro.covid, validation = "Mfold", 
+                          folds = 5, nrepeat = 10, # use repeated cross-validation
+                          progressBar = TRUE, auc = TRUE) # include AUC values
+
+# plot the outcome of performance evaluation across all ten components
+plot(perf.splsda.pro, col = color.mixo(5:7), sd = TRUE,
+     legend.position = "horizontal")
+
+```
+It looks like 2 components is sufficient for both the RNAseq and Proteomic models.  
+
+```{r}
+# grid of possible keepX values that will be tested for each component
+list.keepX <- c(1:10,  seq(20, 300, 10))
+
+# undergo the tuning process to determine the optimal number of variables
+tune.splsda.prot <- tune.splsda(X=rna4, Y=meta_4$cohort_status, ncomp = 4, # calculate for first 4 components
+                                 validation = 'Mfold',
+                                 folds = 5, nrepeat = 10, # use repeated cross-validation
+                                 dist = 'max.dist', # use max.dist measure
+                                 measure = "BER", # use balanced error rate of dist measure
+                                 test.keepX = list.keepX) # allow for paralleliation to decrease runtime
+
+plot(tune.splsda.prot, col = color.jet(4)) # plot output of variable nu
 
 
 ```
+Number of features to keep can be small (<10) for the proteomic model.  I assume RNA-seq is probably similar (10-20 features). 
+
+
+```{r}
+# set the styling of the legend to be homogeneous with previous plots
+legend=list(legend = levels(as.factor(meta_4$cohort_status)), # set of classes
+            col = unique(color.mixo(as.factor(meta_4$cohort_status))), # set of colours
+            title = "Cohort Status", # legend title
+            cex = 0.7) # legend size
+
+# generate the CIM, using the legend and colouring rows by each sample's class
+cim <- cim(spls.da.rna.covid, row.sideColors = color.mixo(as.factor(meta_4$cohort_status)), 
+           legend = legend, save = "png", name.save = here("images","heatmap_slps_da_rna_covid"))
+```
+
+### Multiblock sPLS-DA 
+
+Now that we've performed classification procedure with PLS for both RNA-seq and Proteomics data, let's combine both datasets into an N-integration multiblock model for our classification task and see if that improves performance further.  
+
+```{r}
+X <- list(rna = rna4, prot = prot4)
+Y <- meta_4$cohort_status
+
+list.keepX = list(rna = c(10,10), prot = c(10, 10)) 
+
+des <- matrix(data = c(0,0.1,0.1,0), nrow=2, ncol=2)
+spls.diablo.covid <- block.splsda(X=X, Y=Y, ncomp=2, keepX=list.keepX, design = des)
+```
+
+```{r}
+# plot the contributions of each feature to each dimension
+plotLoadings(spls.diablo.covid, ncomp = 1) 
+
+plotIndiv(spls.diablo.covid, rep.space = "XY-variate", 
+          group = meta_4$cohort_status, ind.names = FALSE, 
+          ellipse = TRUE,
+          legend = TRUE, title = 'N-Int sPLS-DA with confidence ellipses')
+
+plotVar(spls.diablo.covid) # plot the variables
+```
+
 

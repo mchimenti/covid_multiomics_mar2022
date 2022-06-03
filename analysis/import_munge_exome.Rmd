@@ -1,0 +1,53 @@
+---
+title: "Import and Tidy Exome Data: Ryan Multiomics"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+# Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+here::i_am("analysis/import_munge_exome.Rmd")
+```
+
+# Data Import 
+
+According to the sPLS/DIABLO documentation for mixOmics, exome data need to be converted to binary format (0/1) for analysis.  Here we will filter the TSV files for relevant columns and exclude variants that are intronic or not significant (synonymous).  
+
+## Raw data
+
+```{r}
+gene_background <- readr::read_delim(file = here("data","WES","Cohort_1_COVID_ICU","DNA_2_v1-full.tsv"), 
+                         col_names = TRUE,
+                         skip = 2, delim = "\t") %>%
+  select(gene) %>% unique()
+
+
+dat <- readr::read_delim(file = here("data","WES","Cohort_1_COVID_ICU","DNA_2_v1-full.tsv"), 
+                         col_names = TRUE,
+                         skip = 2,  delim = "\t",
+                         ) %>% 
+  select(., c(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,transcript,location,`function`,codon,exon,protein,coding,sift,polyphen)) %>%
+  filter(type == "SNV") %>%
+  filter(`filter` == "PASS") %>% 
+  filter(pvalue < 0.001) %>% 
+  filter(maf <= 0.01) %>% 
+  filter(str_detect(`function`,
+                    "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss"))
+         
+         
+```
+
