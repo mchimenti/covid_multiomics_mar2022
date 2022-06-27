@@ -1,6 +1,0 @@
-#%result_name=Cohort 1 over time
-#%array_type=Immune-response
-#%annotation=Immune-response.transcript.csv
-#%comparison=1 vs 7
-ID	1 Avg (log2)	7 Avg (log2)	Fold Change	P-val	FDR P-val	Gene Symbol	Description
-KREMEN1_12861389	19.52	20.48	-1.94	0.0475	0.9962	KREMEN1	kringle_containing_transmembrane_protein_1

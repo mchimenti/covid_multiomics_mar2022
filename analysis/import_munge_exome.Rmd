@@ -23,31 +23,448 @@ library(here)
 here::i_am("analysis/import_munge_exome.Rmd")
 ```
 
-# Data Import 
+According to the sPLS/DIABLO documentation for mixOmics, exome data need to be converted to binary format (0/1) for analysis.  Here we will filter the TSV files for relevant columns and exclude variants that are intronic or not significant (synonymous).  We will only include SNV variants that pass quality control, have a p-value < 0.001, a MAF < 1.0% (or whatever we decide) and are predicted to have missense, nonsense, stoploss, or frameshift.  
 
-According to the sPLS/DIABLO documentation for mixOmics, exome data need to be converted to binary format (0/1) for analysis.  Here we will filter the TSV files for relevant columns and exclude variants that are intronic or not significant (synonymous).  
+Strategy: 
 
-## Raw data
+ - 1. Find and list all TSV files 
+ - 2. Loop over list of TSV files to import
+ - 3. Keep record of file name and sample # associated to each table
+ - 4. Filter each table for just rare, deleterious variants 
+ - 5. Combine tables into one large sample X gene table of binary (yes/no) data for MixOmics
+
+
+## Import exomes and filter
+
+NOTE: ask about sample DNA_6 exome (no SNVs detected). There appears to be a problem with the exome for DNA_32, as well. 
+
+#### Parameters 
 
 ```{r}
-gene_background <- readr::read_delim(file = here("data","WES","Cohort_1_COVID_ICU","DNA_2_v1-full.tsv"), 
-                         col_names = TRUE,
-                         skip = 2, delim = "\t") %>%
-  select(gene) %>% unique()
 
-
-dat <- readr::read_delim(file = here("data","WES","Cohort_1_COVID_ICU","DNA_2_v1-full.tsv"), 
-                         col_names = TRUE,
-                         skip = 2,  delim = "\t",
-                         ) %>% 
-  select(., c(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,transcript,location,`function`,codon,exon,protein,coding,sift,polyphen)) %>%
-  filter(type == "SNV") %>%
-  filter(`filter` == "PASS") %>% 
-  filter(pvalue < 0.001) %>% 
-  filter(maf <= 0.01) %>% 
-  filter(str_detect(`function`,
-                    "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss"))
-         
-         
+nmax = -1  # -1 is the same as no nmax 
+maf_thresh = 0.05
 ```
+
+#### Cohort 1 
+
+```{r}
+
+files <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv", full.names = TRUE)
+names <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv")
+
+cohort.1 <- purrr::map(
+  .x = files, .f = function(file) {
+    readr::read_delim(
+      file=file, col_names = TRUE, 
+      skip = 2,  delim = "\t", n_max = nmax) %>%
+      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+      dplyr::filter(
+        type == "SNV",
+        `filter` == "PASS",
+        pvalue < 0.001,
+        maf < maf_thresh
+      ) %>%
+      dplyr::filter(
+        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+      ) %>% bind_cols(
+        ., file = file) %>%
+      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+      ) %>% 
+      dplyr::mutate(cohort = "COVID_ICU")
+  }
+)
+
+names(cohort.1) <- names 
+
+```
+
+#### Cohort 2
+
+```{r}
+
+files <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv", full.names = TRUE)
+names <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv")
+
+
+cohort.2 <- purrr::map(
+  .x = files, .f = function(file) {
+    readr::read_delim(
+      file=file, col_names = TRUE, 
+      skip = 2,  delim = "\t", n_max = nmax) %>%
+      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+      dplyr::filter(
+        type == "SNV",
+        `filter` == "PASS",
+        pvalue < 0.001,
+        maf < maf_thresh
+      ) %>%
+      dplyr::filter(
+        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+      ) %>% bind_cols(
+        ., file = file) %>%
+      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+      ) %>% 
+      dplyr::mutate(cohort = "COVID_NEG_INPAT")
+  }
+)
+
+names(cohort.2) <- names 
+
+```
+
+#### Cohort 3
+
+```{r}
+
+files <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv", full.names = TRUE)
+names <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv")
+
+cohort.3 <- purrr::map(
+  .x = files, .f = function(file) {
+    readr::read_delim(
+      file=file, col_names = TRUE, 
+      skip = 2,  delim = "\t", n_max = nmax) %>%
+      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+      dplyr::filter(
+        type == "SNV",
+        `filter` == "PASS",
+        pvalue < 0.001,
+        maf < maf_thresh
+      ) %>%
+      dplyr::filter(
+        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+      ) %>% bind_cols(
+        ., file = file) %>%
+      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+      ) %>% 
+      dplyr::mutate(cohort = "COVID_inpatient")
+  }
+)
+
+names(cohort.3) <- names 
+
+```
+
+#### Cohort 4
+
+```{r}
+
+files <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv", full.names = TRUE)
+names <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv")
+
+cohort.4 <- purrr::map(
+  .x = files, .f = function(file) {
+    readr::read_delim(
+      file=file, col_names = TRUE, 
+      skip = 2,  delim = "\t", n_max = nmax) %>%
+      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+      dplyr::filter(
+        type == "SNV",
+        `filter` == "PASS",
+        pvalue < 0.001,
+        maf < maf_thresh
+      ) %>%
+      dplyr::filter(
+        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+      ) %>% bind_cols(
+        ., file = file) %>%
+      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+      ) %>% 
+      dplyr::mutate(cohort = "COVID_outpatient")
+  }
+)
+
+names(cohort.4) <- names 
+
+```
+
+
+## Exploratory analysis 
+
+```{r}
+cohorts <- list(cohort.1, cohort.2, cohort.3, cohort.4)
+dat <- map_dfr(.x = cohorts, .f = bind_rows)
+```
+
+### VENN diagrams 
+
+```{r}
+library(VennDiagram)
+
+
+#dat2 <- dat %>% group_by(cohort)
+
+set.cohort1 <- dat[dat$cohort=="COVID_ICU","gene"]
+set.cohort2 <- dat[dat$cohort=="COVID_NEG_INPAT","gene"]
+set.cohort3 <- dat[dat$cohort=="COVID_inpatient","gene"]
+set.cohort4 <- dat[dat$cohort=="COVID_outpatient","gene"]
+
+
+venn.diagram(x = list(set.cohort1$gene, set.cohort2$gene, set.cohort3$gene, set.cohort4$gene),
+              category.names = c("C1_COVID_ICU","C2_NEG_INPAT","C3_COVID_INPAT","C4_COVID_OUTPAT"),
+              filename = here("images","4_way_venn_cohorts_genes"),
+              output = TRUE ,
+              imagetype="png" ,
+              height = 1200 , 
+              width = 1200 , 
+              resolution = 300,
+              compression = "lzw",
+              lwd = 1,
+)
+
+venn.diagram(x = list(set.cohort1$gene, set.cohort3$gene, set.cohort4$gene),
+            category.names = c("C1_COVID_ICU","C3_COVID_INPAT","C4_COVID_OUTPAT"),
+            filename = here("images","3_way_venn_cohorts_genes"),
+            output = TRUE ,
+            imagetype="png" ,
+            height = 1200 , 
+            width = 1200 , 
+            resolution = 300,
+            compression = "lzw",
+            lwd = 1,
+            col=c("#440154ff", '#21908dff', '#fde725ff'),
+            fill = c(alpha("#440154ff",0.3), alpha('#21908dff',0.3), alpha('#fde725ff',0.3)),
+            cex = 0.5,
+            fontfamily = "sans",
+            cat.cex = 0.3,
+            cat.default.pos = "outer",
+            cat.pos = c(-27, 27, 135),
+            cat.dist = c(0.055, 0.055, 0.085),
+            cat.fontfamily = "sans",
+            cat.col = c("#440154ff", '#21908dff', '#fde725ff'),
+            rotation = 1
+        )
+
+
+```
+
+### VENN analysis 
+
+3-way VENN analysis of genes present in 3 COVID + cohort after filtering at MAF < `r maf_thresh`.  This is BEFORE filtering for genes of interest from the literature and RNA-seq results.  
+
+```{r img-with-knitr1, echo=FALSE, fig.align='center', out.width='100%', fig.cap='3-way VENN of genes in analysis'}
+knitr::include_graphics(here("images","3_way_venn_cohorts_genes"))
+```
+
+4-way VENN analysis of genes present in all cohorts after filtering at MAF < `maf_thresh`.  
+
+```{r img-with-knitr2, echo=FALSE, fig.align='center', out.width='100%', fig.cap='4-way VENN of genes in analysis'}
+knitr::include_graphics(here("images","3_way_venn_cohorts_genes"))
+```
+
+
+### Sift and Polyphen Scores by Cohort 
+
+A SIFT score is a normalized probability of observing the new amino acid at that position, and ranges from 0 to 1. A *value of between 0 and 0.05* is predicted to affect protein function.
+
+The PolyPhen score represents the probability that a substitution is damaging, *so values nearer one are more confidently predicted to be deleterious (note that this the opposite to SIFT)*. The qualitative prediction is based on the False Positive Rate of the classifier model used to make the predictions.
+
+```{r}
+
+ p1 <- dat %>% ggplot(aes(x=as.numeric(sift), fill=cohort)) + 
+   geom_histogram( aes(y = 100*(..count..)/sum(..count..)), position = 'identity', binwidth = 0.05) + 
+   labs(fill="") + 
+   theme_bw()  + 
+   ylab("Percentage of variants") + 
+   xlab("Binned SIFT score") + 
+   facet_wrap(~cohort) + 
+   ggtitle("All Genes: SIFT score by Cohort (0 is damaging)")
+
+ p1
+ 
+ 
+ p2 <- dat %>% ggplot(aes(x=as.numeric(polyphen), fill=cohort)) + 
+   geom_histogram( aes(y=100*(..count..)/sum(..count..)), binwidth = 0.05, position = 'identity') + 
+   ylab("Percentage of variants") + 
+   xlab("Binned PolyPhen score") + 
+   labs(fill="") + 
+   theme_bw() + 
+   facet_wrap(~cohort) + 
+   ggtitle("All Genes: Polyphen Score by Cohort (1 is damaging)")
+
+ p2
+```
+
+### Mutation type barplots
+
+```{r}
+p1 <- dat %>% filter(!grepl("\\|",`function`)) %>% select(`function`, cohort) %>%
+  ggplot(aes(x=`function`, fill=cohort)) + scale_y_continuous(trans='log2') +
+   geom_bar() + 
+   labs(fill="") + 
+   theme_bw()  + 
+   ylab("Log10 (Counts)") + 
+   xlab("Predicted mutation impact") + 
+   facet_wrap(~cohort) + 
+   ggtitle("Log10 count of SNVs by type (excl 'unknown' or multi-allele types)")
+
+ p1
+ 
+```
+
+### MAF histogram 
+
+```{r}
+p1 <- dat %>% ggplot(aes(x=as.numeric(maf), fill=cohort)) + 
+   geom_histogram( aes(y=100*(..count..)/sum(..count..)), bins = 20, position = 'identity') + 
+   ylab("Percentage of variants") + 
+   xlab("Minor allele frequency") + 
+   labs(fill="") + 
+   theme_bw() + 
+   facet_wrap(~cohort) + 
+   ggtitle("Minor allele frequency by cohort (filtered for < 5%)")
+
+ p1
+```
+
+### Top genes with > 100 variants (ALL COHORTS)
+
+```{r, fig.height=9}
+top_genes <- dat %>% select(gene) %>% table() %>% sort(decreasing = TRUE) %>% as_tibble(.name_repair = 'unique')
+colnames(top_genes) <- c("gene","n")
+
+p1 <- top_genes %>% filter(n>100) %>%
+  ggplot(aes(y=reorder(gene, n), x=n)) + geom_bar(stat="identity")
+
+p1
+```
+
+### Genes of interest
+
+Here we will compile genes from the literature and genes from the RNA-seq DE analysis: 
+
+Genes associated with COVID severity from the literature (https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8047200/):
+
+HLA-A, HLA-B, HLA-C, HLA-DQB1, HLA-DRB1, IL6, IL6R, TGFbeta, IFNalpha, TNFAlpha, IL10, IL2,
+IL1B, IL17A, IL1R1, IL1RN, FCGR2A, IFNL3, FCGR2A, RPAIN, C1QBP, IL8, CXCL8, CCL2, CCL5, CXCL9,
+CXCL10, NLRP3, IL4R, TLR3, IRF7, TLR7, ACE2, TMPRSS2, CTSL, TMPRSS11A, ELANE, LZTFL1, 
+SLC6A20, CCR9, FYCO1, CXCR6, XCR1, ABO, TMEM189, GOLGA3, DPP7, OAS1, OAS2, OAS3, TYK2, DPP9, IFNAR2,
+PROC, F5, SERPINC1, SERPINE1
+
+
+
+```{r}
+genes.from.lit <- c("HLA-A", "HLA-B", "HLA-C", "HLA-DQB1", "HLA-DRB1", "IL6", "IL6R", "TGFB", "IFNA1", "IFNA2", "TNFA", "IL10", "IL2",
+  "IL1B", "IL17A", "IL1R1", "IL1RN", "FCGR2A", "IFNL3", "FCGR2A", "RPAIN", "C1QBP", "IL8", "CXCL8", "CCL2", "CCL5", "CXCL9",
+  "CXCL10", "NLRP3", "IL4R", "TLR3", "IRF7", "TLR7", "ACE2", "TMPRSS2", "CTSL", "TMPRSS11A", "ELANE", "LZTFL1", 
+  "SLC6A20", "CCR9", "FYCO1", "CXCR6", "XCR1", "ABO", "TMEM189", "GOLGA3", "DPP7", "OAS1", "OAS2", "OAS3", "TYK2", "DPP9", "IFNAR2",
+  "PROC", "F5", "SERPINC1", "SERPINE1")
+
+degs.severe.mild <- readr::read_delim(here("processed_data","OIRR_transcriptome_analysis_exports", "severe_v_cohorts","gene_list_severe_vs_mild.txt"), 
+                                      delim = "\t", skip = 4, col_select = c(`Fold Change`,`FDR P-val`,`Gene Symbol`))
+
+degs.severe.mod <- readr::read_delim(here("processed_data","OIRR_transcriptome_analysis_exports","severe_v_cohorts","gene_list_severe_vs_moderate.txt"),
+                                     delim = "\t", skip = 4, col_select = c(`Fold Change`,`FDR P-val`,`Gene Symbol`))
+
+degs.severe.other <- readr::read_delim(here("processed_data","OIRR_transcriptome_analysis_exports","severe_v_cohorts","gene_list_severe_vs_other_covid.txt"),
+                                     delim = "\t", skip = 4, col_select = c(`Fold Change`,`FDR P-val`,`Gene Symbol`))
+
+genes <- c(degs.severe.mild$`Gene Symbol`, degs.severe.mod$`Gene Symbol`, degs.severe.other$`Gene Symbol`, genes.from.lit)
+genes.of.int <- genes[genes %in% dat$gene]
+```
+
+There are `r length(unique(genes.of.int))` genes with mutations detected within the samples after filtering variants at a MAF threshold of `r maf_thresh`.  
+
+#### Gene counts table 
+
+Below is a table of variant counts by gene and sample (after filtering).  I could transform this to a 1/0 binary data table for input into the model.  
+
+```{r}
+dat.genes.of.int <- dat %>% filter(gene %in% genes.of.int)
+
+counts <- dat.genes.of.int %>% count(sample, gene) %>% 
+  pivot_wider(names_from = gene, values_from = n, values_fill = 0)
+
+counts
+
+```
+
+### VENN analysis genes of interest ONLY 
+
+```{r}
+set.cohort1 <- dat.genes.of.int[dat.genes.of.int$cohort=="COVID_ICU","gene"]
+set.cohort2 <- dat.genes.of.int[dat.genes.of.int$cohort=="COVID_NEG_INPAT","gene"]
+set.cohort3 <- dat.genes.of.int[dat.genes.of.int$cohort=="COVID_inpatient","gene"]
+set.cohort4 <- dat.genes.of.int[dat.genes.of.int$cohort=="COVID_outpatient","gene"]
+
+
+venn.diagram(x = list(set.cohort1$gene, set.cohort2$gene, set.cohort3$gene, set.cohort4$gene),
+              category.names = c("C1_COVID_ICU","C2_NEG_INPAT","C3_COVID_INPAT","C4_COVID_OUTPAT"),
+              filename = here("images","4_way_venn_cohorts_genes_of_interest.png"),
+              output = TRUE ,
+              imagetype="png" ,
+              height = 1200 , 
+              width = 1200 , 
+              resolution = 300,
+              compression = "lzw",
+              lwd = 1,
+)
+
+```
+
+```{r img-with-knitr3, echo=FALSE, fig.align='center', out.width='100%', fig.cap='4-way VENN of genes in analysis'}
+knitr::include_graphics(here("images","4_way_venn_cohorts_genes_of_interest.png"))
+```
+
+### PCA analysis 
+
+```{r}
+
+library(ggfortify)
+dat.counts.goi <- dat.genes.of.int %>% count(sample, gene, cohort) %>%
+  pivot_wider(names_from = gene, values_from = n, values_fill = 0)
+
+
+dat.goi.pca <- prcomp(dat.counts.goi[,3:99])
+p1 <- autoplot(dat.goi.pca, data=dat.counts.goi, colour='cohort')
+p1
+
+biplot(dat.goi.pca)
+```
+Unfortunately, we do not see clear cohort separation on gene mutations in the genes of interest, however we do see that the variation in PC1 and PC2 are being driven by differences in MKI67, CIITA, IL4R and F5 primarily.  
+
+
+### SIFT and polyphen scores within genes of interest 
+
+```{r}
+
+
+ p1 <- dat.genes.of.int %>% ggplot(aes(x=as.numeric(sift), fill=cohort)) + 
+   geom_histogram( aes(y = 100*(..count..)/sum(..count..)), position = 'identity', binwidth = 0.05) + 
+   labs(fill="") + 
+   theme_bw()  + 
+   ylab("Percentage of variants") + 
+   xlab("Binned SIFT score") + 
+   facet_wrap(~cohort) + 
+   ggtitle("Genes of Interest SIFT score by Cohort (0 is damaging)")
+
+ p1
+ 
+ 
+ p2 <- dat.genes.of.int %>% ggplot(aes(x=as.numeric(polyphen), fill=cohort)) + 
+   geom_histogram( aes(y=100*(..count..)/sum(..count..)), binwidth = 0.05, position = 'identity') + 
+   ylab("Percentage of variants") + 
+   xlab("Binned PolyPhen score") + 
+   labs(fill="") + 
+   theme_bw() + 
+   facet_wrap(~cohort) + 
+   ggtitle("Genes of Interest Polyphen Score by Cohort (1 is damaging)")
+
+ p2
+```
+
+
+#### Computational session 
+
+```{r}
+sessionInfo()
+```
+
+
+
 
