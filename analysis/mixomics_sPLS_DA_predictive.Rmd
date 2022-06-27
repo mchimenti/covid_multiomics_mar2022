@@ -51,7 +51,7 @@ Make the sample names match.  Not all samples specified in the metadata are foun
 
 ```{r}
 new_name <- rna$name %>% str_split(., pattern="-", simplify = TRUE) %>% paste0("RL_SARS_",.)
-new_name <- new_name[1:80]
+new_name <- new_name[1:length(rna$name)]
 rna$sample_ID <- new_name 
 
 prot <- prot %>% rename(sample_ID=Assay)
@@ -59,16 +59,10 @@ prot <- prot %>% rename(sample_ID=Assay)
 ### There are 76 of 168 total proteomic datasets (we are excluding saliva datasets from consideration which is the reason for the mismatch)
 sum(prot$sample_ID %in% meta$sample_ID)
 
-###  There are 70 of 100 RNAseq files specified in meta (I don't know where the missing 30 files are)
-sum(rna$sample_ID %in% meta$sample_ID)
+###  There are 97 of 97 RNAseq files specified in meta 
+                        #number of RNA files in meta  == #samples in rna found in meta 
+assertthat::assert_that(sum(meta$sample_type == "RNA") == sum(rna$sample_ID %in% meta$sample_ID))
 
-### There are 30 samples listed in metadata NOT found among the RNA data files 
-sum(meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID)
-
-## These missing samples are: 
-missing <- meta$sample_ID[meta$sample_type=="RNA"] %in% rna$sample_ID
-no_RNA_data <- meta[meta$sample_type=="RNA",] %>% filter(!missing)
-no_RNA_data$sample_ID
 
 ### Each data table needs a "master key" to determine sample of origin, without regards to data type 
 master_key_dict <- meta %>% dplyr::select(c(sample_ID, master_key))
@@ -79,9 +73,6 @@ rna2 <- left_join(rna, master_key_dict, by="sample_ID")
 intersect(prot2$master_key, rna2$master_key)
 setdiff(prot2$master_key, rna2$master_key)
 
-## Note: 
-## RNA files for 5.7 through 7.1 are in 'Auto_user_GSS5PR-0221-28-first_RNA_run_198.mean_hk_scaled_log2_count.xls'
-## Need to edit RNA munging to include these and find location on samples 25-29, 30-34,... etc... 
 ```
 
 
