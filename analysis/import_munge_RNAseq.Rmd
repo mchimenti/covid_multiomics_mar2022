@@ -27,14 +27,34 @@ library(here)
 
 According to the sPLS/DIABLO documentation for mixOmics, the data need to be normalized and imported as samples in rows, features in columns format.  
 
+Notes from Noa: 
+
+Samples 5.7-7.1 are contained in that group of files labeled "first RNA run".
+
+Samples 7.3 and 7.7 do not have data; they were run on a chip that was unusable after a power surge in the building interfered with the run. 
+
+Samples 8.7 and 9.3 were originally included on sample lists provided by the Biorepository, but the physical samples for these were not provided to us.
+
+Samples 26.1-29.1 and 29.3-34.1 correspond sequentially to the samples in "1-4-22 chip 1" and "1-4-22 chip 2" respectively. So "1-4-22 chip 1 sample 1" is sample 26.1, "1-4-22 chip 1 sample 2" is sample 26.5, etc.
+
+Sample 44.1+45.1 is actually two samples; the Biorepository originally provided info that patient 44 and 45 were separate, but they are actually 1 patient. So the run files for 44.1 and 45.1 are duplicates of the same patient and collection day.
+
+The rest of the missing samples are typos on my part. 
+For patient 54 we received samples for 54.3 and 54.5, there is no 54.1 (typo on the metadata sheet)
+For missing sample 21.3, the file has been mislabeled 21.2 (typo on the file name)
+For missing sample 25.8, the corresponding file is 25.7 (typo on the metadata sheet)
+
 ## Raw counts 
 
 ```{r, eval=FALSE}
 samples_1.1_3.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-38-RNA_samples_1.1-3.3_208.bcmatrix.xls"), delim = '\t')
 samples_3.5_5.5 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-39-RNA_samples_3.5-5.5_209.bcmatrix.xls"), delim = '\t')
+samples_5.7_7.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-28-RNA_samples_5.7-7.1_198.bcmatrix.xls"), delim = '\t')
 samples_8.1_14.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-29-RNA_samples_8.1-14.1_199.bcmatrix.xls"), delim = '\t')
 samples_15.1_22.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-30-RNA_samples_15.1-22.1_200.bcmatrix.xls"), delim = '\t')
 samples_22.2_25.7 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-31-RNA_samples_22.2-25.7_201.bcmatrix.xls"), delim = '\t')
+samples_26.1_29.1 <- readr::read_delim(file = here("data", "rnaseq","Auto_user_GSS5PR-0221-32-RNA_samples_26.1-29.1_202.bcmatrix.xls"), delim = '\t')
+samples_29.3_34.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-33-RNA_samples_29.3-34.1_203.bcmatrix.xls"), delim= '\t')
 samples_35.1_41.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-34-RNA_samples_35.1-41.3_204.bcmatrix.xls"), delim = '\t')
 samples_42.3_46.3 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-35-RNA_samples_42.3-46.3_205.bcmatrix.xls"), delim = '\t')
 samples_46.7_53.5 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GSS5PR-0221-36-RNA_samples_46.7-53.5_206.bcmatrix.xls"), delim = '\t')
@@ -47,9 +67,12 @@ samples_65.1_68.1 <- readr::read_delim(file = here("data","rnaseq","Auto_user_GS
 ```{r}
 samples_1.1_3.3 <-   readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-38-RNA_samples_1.1-3.3_208.mean_hk_scaled_log2_count.xls"), delim ='\t', col_select = c(1,3:10) )
 samples_3.5_5.5 <-   readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-39-RNA_samples_3.5-5.5_209.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_5.7_7.1 <-   readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-28-RNA_samples_5.7-7.1_198.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
 samples_8.1_14.1 <-  readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-29-RNA_samples_8.1-14.1_199.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
 samples_15.1_22.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-30-RNA_samples_15.1-22.1_200.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
 samples_22.2_25.7 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-31-RNA_samples_22.2-25.7_201.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_26.1_29.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-32-RNA_samples_26.1-29.1_202.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
+samples_29.3_34.1 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-33-RNA_samples_29.3-34.1_203.mean_hk_scaled_log2_count.xls"), delim= '\t', col_select = c(1,3:10))
 samples_35.1_41.3 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-34-RNA_samples_35.1-41.3_204.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
 samples_42.3_46.3 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-35-RNA_samples_42.3-46.3_205.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
 samples_46.7_53.5 <- readr::read_delim(file=here("data","rnaseq","Auto_user_GSS5PR-0221-36-RNA_samples_46.7-53.5_206.mean_hk_scaled_log2_count.xls"), delim = '\t', col_select = c(1,3:10))
@@ -68,8 +91,8 @@ df_transpose <- function(df) {
 }
 
 
-set <- list(samples_1.1_3.3, samples_3.5_5.5, samples_8.1_14.1, samples_15.1_22.1, 
-          samples_22.2_25.7, samples_35.1_41.3, samples_42.3_46.3, samples_46.7_53.5, 
+set <- list(samples_1.1_3.3, samples_3.5_5.5, samples_5.7_7.1, samples_8.1_14.1, samples_15.1_22.1, 
+          samples_22.2_25.7, samples_26.1_29.1, samples_29.3_34.1, samples_35.1_41.3, samples_42.3_46.3, samples_46.7_53.5, 
           samples_54.3_64.1, samples_65.1_68.1)
 
 for (i in seq_along(set)) {
@@ -78,7 +101,8 @@ for (i in seq_along(set)) {
 }
 
 df <- dplyr::bind_rows(set)
-head(df)
+df <- df %>% filter(name != c("NTC-R61","total_RNA_control-R61"))
+df
 
 ```
 

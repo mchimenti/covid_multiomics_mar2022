@@ -25,11 +25,11 @@ library(here)
 ```
 
 ```{r}
-meta <- readr::read_csv(file=here("metadata", "COVID seq patient metadata MSC edit.csv"))
+meta <- readr::read_csv(file=here("metadata", "UPDATED COVID seq patient metadata MSC edit.csv"))
 meta <- meta %>% 
   fill(c("patient_ID_orig","patient_ID_ryanlab","ethnicity","age","sex","comorbidities")) %>% 
   filter(sample_ID != 'NA') %>%
-  dplyr::select(-...12) %>% 
+  #dplyr::select(-...12) %>% 
   mutate(data_type = case_when(sample_type == "saliva" ~ "Proteomic",
                                sample_type == "plasma" ~ "Proteomic",
                                sample_type == "RNA" ~ "RNAseq",
