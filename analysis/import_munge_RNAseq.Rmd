@@ -102,10 +102,16 @@ for (i in seq_along(set)) {
 
 df <- dplyr::bind_rows(set)
 df <- df %>% filter(name != c("NTC-R61","total_RNA_control-R61"))
+
+### These are manual namefixes for grad student's typos and mistakes 
+df$name[102] <- "RL_SARS_RNA_47.5"
+df$name[]
+
 df
 
 ```
 
+"RL_SARS_RNA_13.3" "RL_SARS_RNA_61.3" "RL_SARS_RNA_42.2" "RL_SARS_RNA_43.2" "RL_SARS_RNA_47.1"
 
 ```{r}
 #readr::write_csv(x = df, file = here("data","munged_data","rnaseq_allsamples_rawcounts.csv"))

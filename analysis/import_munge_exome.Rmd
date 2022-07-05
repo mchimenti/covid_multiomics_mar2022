@@ -42,9 +42,59 @@ NOTE: ask about sample DNA_6 exome (no SNVs detected). There appears to be a pro
 
 ```{r}
 
-nmax = -1  # -1 is the same as no nmax 
+nmax = 1000  # -1 is the same as no nmax 
 maf_thresh = 0.05
 ```
+
+#### GNOMAD mutation resistance scores 
+
+ - mis_z: Z score for missense variants in gene. Higher (more positive) Z scores indicate
+  that the transcript is more intolerant of variation (more constrained)
+ - lof_z: Z score for pLoF variants in gene. Higher (more positive) Z scores indicate that the
+  transcript is more intolerant of variation (more constrained)
+  
+```{r}
+gnomad <- readr::read_delim(here("data", "gnomad", "gnomad.v2.1.1.lof_metrics.by_gene.txt"), delim="\t") %>%
+  dplyr::select(gene_id, gene, transcript, mis_z, lof_z) %>%
+  filter(mis_z > 1 & lof_z > 2)
+  
+```
+
+
+### Define the mapping and filtering function 
+
+```{r}
+map_cohort <- function(files, cohort, maf_thresh, nmax) {
+    purrr::map(.x = files, .f = function(file) {
+    readr::read_delim(
+      file=file, col_names = TRUE, 
+      skip = 2,  delim = "\t", n_max = nmax) %>%
+      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+      dplyr::filter(
+        str_detect(type, "SNV|INDEL|MNV")  ### filter for any matching, including heterozygous SNV/INDEL pairs 
+      ) %>%
+      dplyr::filter(
+        `filter` == "PASS",
+        pvalue < 0.001,
+        maf < maf_thresh
+      ) %>%
+      dplyr::filter(
+        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+      ) %>% 
+      dplyr::filter(gene %in% gnomad$gene   ### filter out mutation tolerant genes 
+      ) %>% 
+        bind_cols(
+        ., file = file) %>%
+      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+      ) %>% 
+      dplyr::mutate(cohort = cohort)
+  }
+)
+}
+```
+
+
 
 #### Cohort 1 
 
@@ -53,30 +103,37 @@ maf_thresh = 0.05
 files <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv")
 
-cohort.1 <- purrr::map(
-  .x = files, .f = function(file) {
-    readr::read_delim(
-      file=file, col_names = TRUE, 
-      skip = 2,  delim = "\t", n_max = nmax) %>%
-      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
-                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
-      dplyr::filter(
-        type == "SNV",
-        `filter` == "PASS",
-        pvalue < 0.001,
-        maf < maf_thresh
-      ) %>%
-      dplyr::filter(
-        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
-      ) %>% bind_cols(
-        ., file = file) %>%
-      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
-      ) %>% 
-      dplyr::mutate(cohort = "COVID_ICU")
-  }
-)
-
+cohort.1 <- map_cohort(files, "COVID_ICU", maf_thresh=0.05, nmax = 1000)
 names(cohort.1) <- names 
+
+
+###### 
+# cohort.1 <- purrr::map(
+#   .x = files, .f = function(file) {
+#     readr::read_delim(
+#       file=file, col_names = TRUE, 
+#       skip = 2,  delim = "\t", n_max = nmax) %>%
+#       dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
+#                     transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
+#       dplyr::filter(
+#         str_detect(type, "SNV|INDEL|MNV")  ### filter for any matching, including heterozygous SNV/INDEL pairs 
+#       ) %>%
+#       dplyr::filter(
+#         `filter` == "PASS",
+#         pvalue < 0.001,
+#         maf < maf_thresh
+#       ) %>%
+#       dplyr::filter(
+#         str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
+#       ) %>% bind_cols(
+#         ., file = file) %>%
+#       dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
+#       ) %>% 
+#       dplyr::mutate(cohort = "COVID_ICU")
+#   }
+# )
+
+
 
 ```
 
@@ -87,30 +144,7 @@ names(cohort.1) <- names
 files <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv")
 
-
-cohort.2 <- purrr::map(
-  .x = files, .f = function(file) {
-    readr::read_delim(
-      file=file, col_names = TRUE, 
-      skip = 2,  delim = "\t", n_max = nmax) %>%
-      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
-                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
-      dplyr::filter(
-        type == "SNV",
-        `filter` == "PASS",
-        pvalue < 0.001,
-        maf < maf_thresh
-      ) %>%
-      dplyr::filter(
-        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
-      ) %>% bind_cols(
-        ., file = file) %>%
-      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
-      ) %>% 
-      dplyr::mutate(cohort = "COVID_NEG_INPAT")
-  }
-)
-
+cohort.2 <- map_cohort(files, "COVID_NEG", maf_thresh = 0.05, nmax = 1000)
 names(cohort.2) <- names 
 
 ```
@@ -122,28 +156,7 @@ names(cohort.2) <- names
 files <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv")
 
-cohort.3 <- purrr::map(
-  .x = files, .f = function(file) {
-    readr::read_delim(
-      file=file, col_names = TRUE, 
-      skip = 2,  delim = "\t", n_max = nmax) %>%
-      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
-                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
-      dplyr::filter(
-        type == "SNV",
-        `filter` == "PASS",
-        pvalue < 0.001,
-        maf < maf_thresh
-      ) %>%
-      dplyr::filter(
-        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
-      ) %>% bind_cols(
-        ., file = file) %>%
-      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
-      ) %>% 
-      dplyr::mutate(cohort = "COVID_inpatient")
-  }
-)
+cohort.3 <- map_cohort(files, "COVID_INPAT", maf_thresh = 0.05, nmax = 1000)
 
 names(cohort.3) <- names 
 
@@ -156,28 +169,7 @@ names(cohort.3) <- names
 files <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv")
 
-cohort.4 <- purrr::map(
-  .x = files, .f = function(file) {
-    readr::read_delim(
-      file=file, col_names = TRUE, 
-      skip = 2,  delim = "\t", n_max = nmax) %>%
-      dplyr::select(`# locus`,type,ref,genotype,filter,pvalue,maf,gene,
-                    transcript,location,`function`,codon,exon,protein,coding,sift,polyphen) %>%
-      dplyr::filter(
-        type == "SNV",
-        `filter` == "PASS",
-        pvalue < 0.001,
-        maf < maf_thresh
-      ) %>%
-      dplyr::filter(
-        str_detect(`function`, "missense|nonsynonymous|nonsense|frameshiftDeletion|frameshiftInsertion|stoploss")
-      ) %>% bind_cols(
-        ., file = file) %>%
-      dplyr::mutate(sample = str_extract(file, pattern="DNA_\\d+")
-      ) %>% 
-      dplyr::mutate(cohort = "COVID_outpatient")
-  }
-)
+cohort.4 <- map_cohort(files, "COVID_OUTPAT", maf_thresh = 0.05, nmax = 1000)
 
 names(cohort.4) <- names 
 
