@@ -42,8 +42,8 @@ NOTE: ask about sample DNA_6 exome (no SNVs detected). There appears to be a pro
 
 ```{r}
 
-nmax = 1000  # -1 is the same as no nmax 
-maf_thresh = 0.05
+nmax = -1  # -1 is the same as no nmax 
+maf = 0.05
 ```
 
 #### GNOMAD mutation resistance scores 
@@ -56,7 +56,7 @@ maf_thresh = 0.05
 ```{r}
 gnomad <- readr::read_delim(here("data", "gnomad", "gnomad.v2.1.1.lof_metrics.by_gene.txt"), delim="\t") %>%
   dplyr::select(gene_id, gene, transcript, mis_z, lof_z) %>%
-  filter(mis_z > 1 & lof_z > 2)
+  filter(mis_z > 1.5 | lof_z > 2.5)
   
 ```
 
@@ -103,7 +103,7 @@ map_cohort <- function(files, cohort, maf_thresh, nmax) {
 files <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_1_COVID_ICU"), pattern = "*.tsv")
 
-cohort.1 <- map_cohort(files, "COVID_ICU", maf_thresh=0.05, nmax = 1000)
+cohort.1 <- map_cohort(files, "COVID_ICU", maf_thresh = maf, nmax = nmax)
 names(cohort.1) <- names 
 
 
@@ -144,7 +144,7 @@ names(cohort.1) <- names
 files <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_2_COVID_NEG_inpatient"), pattern = "*.tsv")
 
-cohort.2 <- map_cohort(files, "COVID_NEG", maf_thresh = 0.05, nmax = 1000)
+cohort.2 <- map_cohort(files, "COVID_NEG", maf_thresh = maf, nmax = nmax)
 names(cohort.2) <- names 
 
 ```
@@ -156,7 +156,7 @@ names(cohort.2) <- names
 files <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_3_COVID_inpatient"), pattern = "*.tsv")
 
-cohort.3 <- map_cohort(files, "COVID_INPAT", maf_thresh = 0.05, nmax = 1000)
+cohort.3 <- map_cohort(files, "COVID_INPAT", maf_thresh = maf, nmax = nmax)
 
 names(cohort.3) <- names 
 
@@ -169,7 +169,7 @@ names(cohort.3) <- names
 files <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv", full.names = TRUE)
 names <- dir(path = here("data","WES","Cohort_4_COVID_outpatient"), pattern = "*.tsv")
 
-cohort.4 <- map_cohort(files, "COVID_OUTPAT", maf_thresh = 0.05, nmax = 1000)
+cohort.4 <- map_cohort(files, "COVID_OUTPAT", maf_thresh = maf, nmax = nmax)
 
 names(cohort.4) <- names 
 
@@ -192,9 +192,9 @@ library(VennDiagram)
 #dat2 <- dat %>% group_by(cohort)
 
 set.cohort1 <- dat[dat$cohort=="COVID_ICU","gene"]
-set.cohort2 <- dat[dat$cohort=="COVID_NEG_INPAT","gene"]
-set.cohort3 <- dat[dat$cohort=="COVID_inpatient","gene"]
-set.cohort4 <- dat[dat$cohort=="COVID_outpatient","gene"]
+set.cohort2 <- dat[dat$cohort=="COVID_NEG","gene"]
+set.cohort3 <- dat[dat$cohort=="COVID_INPAT","gene"]
+set.cohort4 <- dat[dat$cohort=="COVID_OUTPAT","gene"]
 
 
 venn.diagram(x = list(set.cohort1$gene, set.cohort2$gene, set.cohort3$gene, set.cohort4$gene),
@@ -316,13 +316,19 @@ p1 <- dat %>% ggplot(aes(x=as.numeric(maf), fill=cohort)) +
 
 ### Top genes with > 100 variants (ALL COHORTS)
 
-```{r, fig.height=9}
-top_genes <- dat %>% select(gene) %>% table() %>% sort(decreasing = TRUE) %>% as_tibble(.name_repair = 'unique')
-colnames(top_genes) <- c("gene","n")
+```{r, fig.height=11}
 
-p1 <- top_genes %>% filter(n>100) %>%
-  ggplot(aes(y=reorder(gene, n), x=n)) + geom_bar(stat="identity")
+tab <- table(dat$gene, dat$cohort) %>% 
+  as.data.frame() %>% 
+  pivot_wider(., id_cols = Var1, names_from = Var2, values_from = Freq) %>%
+  mutate(total = rowSums(.[2:5])) %>% 
+  arrange(desc(total)) %>% 
+  filter(total > 75)
 
+tab2 <- as.data.frame(tab %>% pivot_longer(cols = c(COVID_ICU, COVID_INPAT, COVID_NEG, COVID_OUTPAT)))
+
+p1 <- tab2 %>% ggplot(aes(x=Var1, y=value, fill = name)) + geom_bar(position = "fill", stat="identity") + coord_flip()
+p1 <- p1 + theme(axis.text.y = element_text(size = 6))
 p1
 ```
 
