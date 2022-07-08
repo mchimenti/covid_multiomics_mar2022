@@ -318,17 +318,40 @@ p1 <- dat %>% ggplot(aes(x=as.numeric(maf), fill=cohort)) +
 
 ```{r, fig.height=11}
 
+## For this analysis, we have to normalize by cohort size. The factor for this is  (0.30 0.25 0.28 0.16)
+
+## COVID_ICU  COVID_INPAT    COVID_NEG COVID_OUTPAT 
+##      11036       9711         9841         5597 
+
+norm_fac <- c(11036,9711,9841,5597) / 36185
+
 tab <- table(dat$gene, dat$cohort) %>% 
   as.data.frame() %>% 
-  pivot_wider(., id_cols = Var1, names_from = Var2, values_from = Freq) %>%
-  mutate(total = rowSums(.[2:5])) %>% 
-  arrange(desc(total)) %>% 
-  filter(total > 75)
+  pivot_wider(., id_cols = Var1, names_from = Var2, values_from = Freq) %>% 
+  mutate(total = rowSums(.[2:5])) %>%
+  mutate(COVID_ICU_NORM = COVID_ICU / norm_fac[1]) %>%
+  mutate(COVID_INPAT_NORM = COVID_INPAT / norm_fac[2]) %>%
+  mutate(COVID_NEG_NORM = COVID_NEG / norm_fac[3]) %>% 
+  mutate(COVID_OUTPAT_NORM = COVID_OUTPAT / norm_fac[4]) %>% 
+  mutate(total_norm = rowSums(.[7:10])) %>%
+  mutate(ICU_freq = ((COVID_ICU_NORM / total_norm) *100)) %>%
+  filter(ICU_freq > 27) %>%
+  filter(total > 25) %>%
+  arrange(desc(ICU_freq))
+  
+  
 
-tab2 <- as.data.frame(tab %>% pivot_longer(cols = c(COVID_ICU, COVID_INPAT, COVID_NEG, COVID_OUTPAT)))
+tab2 <- as.data.frame(tab %>% pivot_longer(cols = c(COVID_ICU_NORM, COVID_INPAT_NORM, COVID_NEG_NORM, COVID_OUTPAT_NORM))) 
 
-p1 <- tab2 %>% ggplot(aes(x=Var1, y=value, fill = name)) + geom_bar(position = "fill", stat="identity") + coord_flip()
-p1 <- p1 + theme(axis.text.y = element_text(size = 6))
+
+p1 <- tab2 %>% ggplot(aes(x=Var1, y=value, fill = name)) + geom_bar(position = "fill", stat="identity", width = 3) + 
+  theme(axis.text.y = element_text(size = 8, face = "bold"), axis.text.x = element_text(size=15, face="bold")) + 
+  scale_x_discrete(limits=tab2$Var1) + 
+  geom_hline(yintercept = 0.75, linetype="dotted", color="blue",size=2) + 
+  coord_flip() + 
+  ylab("Frequency of Variant by Cohort") + 
+  xlab("Common Gene Name") +
+  ggtitle("Normalized Frequency of damaging variants (SNV/INDEL) by gene and cohort", subtitle = "Genes have > 25 total mutations after filtering and > 27% rate in ICU cohort after normalization. Dotted line is mean ICU frequency (~25%)")
 p1
 ```
 
