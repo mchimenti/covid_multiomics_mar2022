@@ -257,26 +257,16 @@ Y <- meta_4$cohort_status
 
 list.keepX = list(rna = c(20,20), prot = c(20, 20)) 
 
-des <- matrix(data = c(0,0.1,0.1,0), nrow=2, ncol=2)
+des <- matrix(data = c(0,0.5,0.5,0), nrow=2, ncol=2)
 diablo.covid <- block.splsda(X=X, Y=Y, ncomp=5, keepX=list.keepX, design = des)
-```
-
-```{r}
-# plot the contributions of each feature to each dimension
-plotLoadings(diablo.covid, ncomp = 1) 
-
-plotIndiv(diablo.covid, rep.space = "XY-variate", 
-          group = meta_4$cohort_status, ind.names = FALSE, 
-          ellipse = TRUE,
-          legend = TRUE, title = 'N-Int sPLS-DA with confidence ellipses')
-
-
 ```
 
 ```{r}
 # run component number tuning with repeated CV
 perf.diablo = perf(diablo.covid, validation = 'Mfold', 
-                   folds = 5, nrepeat = 20) 
+                   folds = 5, 
+                   nrepeat = 50,
+                   progressBar = TRUE) 
 
 plot(perf.diablo) # plot output of tuning
 
@@ -291,21 +281,45 @@ perf.diablo$choice.ncomp$WeightedVote
 test.keepX = list (rna = c(5:9, seq(10, 18, 2), seq(20,30,5)), 
                    prot = c(5:9, seq(10, 18, 2), seq(20,30,5)))
 
-ncomp = 2
-
+BPPARAM <- BiocParallel::MulticoreParam(workers = parallel::detectCores()-2)
 # run the feature selection tuning
 tune.diablo = tune.block.splsda(X = X, Y = Y, ncomp = ncomp, 
                               test.keepX = test.keepX, design = des,
-                              validation = 'Mfold', folds = 5, nrepeat = 1,
-                              dist = "centroids.dist")
+                              validation = 'Mfold', 
+                              folds = 5, 
+                              nrepeat = 20,
+                              dist = "centroids.dist",
+                              BPPARAM = BPPARAM)
 
+plot(tune.diablo)
 list.keepX = tune.diablo$choice.keepX # set the optimal values of features to retain
 list.keepX
 ```
 
+
 ```{r}
 final.diablo.covid = block.splsda(X=X, Y=Y, ncomp=2, keepX=list.keepX,design=des)
 ```
+### Testing performance 
+
+```{r}
+# run repeated CV performance evaluation
+
+
+perf.diablo = perf(final.diablo.covid, 
+                   validation = 'Mfold', 
+                   progressBar = TRUE,
+                   folds = 5, 
+                   nrepeat = 20, 
+                   ncpus=4, 
+                   dist = "centroids.dist",
+                   BPPARAM = BPPARAM) 
+
+perf.diablo$MajorityVote.error.rate
+perf.diablo$WeightedVote.error.rate
+```
+
+
 
 
 ```{r}
@@ -334,16 +348,7 @@ circosPlot(final.diablo.covid, cutoff = 0.55, line = TRUE,
 cimDiablo(final.diablo.covid, margins = c(5,5))
 ```
 
-### Testing performance 
 
-```{r}
-# run repeated CV performance evaluation
-perf.diablo = perf(final.diablo.covid, validation = 'Mfold', progressBar = TRUE,
-                   folds = 5, nrepeat = 25, ncpus=4) 
-
-perf.diablo$MajorityVote.error.rate
-perf.diablo$WeightedVote.error.rate
-```
 
 
 
