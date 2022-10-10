@@ -1,5 +1,5 @@
 ---
-title: "Integrative sparse Partial Least Squares Discriminant Analysis multiomics modeling"
+title: "Integrative sparse Partial Least Squares Discriminant Analysis multiomics modeling Oct 22 Update"
 output: 
   html_document:
     df_print: paged
@@ -133,7 +133,7 @@ plotIndiv(spls.da.rna.covid, comp = 1:2, rep.space = "XY-variate",
           legend = TRUE, title = " (b) PLSDA with prediction background")
 ```
 
-### sPLS-DA without the COVID NEG samples 
+### Removing Covid NEG samples
 
 ```{r}
 mask <- meta_3$covid_status != "NEG"
@@ -150,19 +150,14 @@ rownames(rna4) == meta_4$master_key
 rownames(prot4) == meta_4$master_key
 ```
 
-### Single omic sPLS-DA models 
+### RNA sPLS-DA model tuning  
 
-Previous tuning of the sPLS models suggests that 2 components and 15-20 features will be appropriate: 
-Number of PLS Components = 2
-Features to keep = 15 
 
 ```{r}
 spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status, ncomp=10)
-spls.da.pro.covid <- splsda(X=prot4, Y=meta_4$cohort_status, ncomp=2, keepX = 15)
 ```
 
-
-### Tuning single RNAseq sPLS-DA model 
+### Tune number of comps 
 
 ```{r}
 perf.spls.da.rna.covid <- perf(spls.da.rna.covid,
@@ -174,6 +169,8 @@ perf.spls.da.rna.covid <- perf(spls.da.rna.covid,
 
 perf.spls.da.rna.covid$choice.ncomp
 ```
+
+### Tune number of features to keep 
 
 ```{r}
 # grid of possible keepX values that will be tested for each component
@@ -192,8 +189,13 @@ tune.splsda.rna.covid <- tune.splsda(X=rna4, Y=meta_4$cohort_status,
 
 plot(tune.splsda.rna.covid, col = color.jet(5)) # plot output of variable number tuning
 ```
+
+### Use optimal values 
+
+The "ncomps" recommended by performance tuning (N=5) and by feature selection tuning (N=2) do not agree.  I will use the lower number of components in that case to avoid overfitting and keep the model more simple.  
+
 ```{r}
-optimal.ncomp <- tune.splsda.rna.covid$choice.ncomp$ncomp  ## this may not agree with the perf calculation above.  but tuning shows 2 comps is all that is needed
+optimal.ncomp <- tune.splsda.rna.covid$choice.ncomp$ncomp 
 optimal.keepX <- tune.splsda.rna.covid$choice.keepX[1:optimal.ncomp]
 ```
 
@@ -237,64 +239,41 @@ In this plot, we can see the samples in the PLS reduction to first 2 components,
 looking at the mean of XY coordinates together.  This is similar to PCA, but because of the 
 Discriminant Analysis (DA), we have a decision boundary space that predicts sample types.  
 
-#### Proteomics alone 
-
-```{r}
-
-plotIndiv(spls.da.pro.covid , comp = 1:2, rep.space = "XY-variate",
-          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
-          ellipse = TRUE, # include 95% confidence ellipse for each class
-          legend = TRUE, title = 'Proteome sPLS-DA projection in XY space')
-
-```
-
-```{r}
-background_pro = background.predict(spls.da.pro.covid, comp.predicted=2, dist = "max.dist")
-plotIndiv(spls.da.pro.covid, comp = 1:2, rep.space = "XY-variate",
-          group = meta_4$cohort_status, ind.names = FALSE, # colour points by class
-          background = background_pro, # include prediction background for each class
-          legend = TRUE, title = " Proteome sPLS-DA with decision boundary")
-
-```
-
-NB: "s22_day1" is an outlier for the COVID POS Inpatient cohort in Proteomics, "s24_day1" is an outlier for RNA-seq.  
-
-### Important Features in single 'omics models 
-
-#### RNAseq 
 
 ***When undergoing most dimension reduction methods in the mixOmics package, latent components are produced. These latent components are defined by their corresponding loading vectors, which are vectors with the weight of each original variable's contribution to the corresponding latent component. Greater absolute values in this loading vector means that a given variable has a greater “importance”.The plotLoadings() function allows for the visualisation of this importance using a bar plot, where the most relevant original variables (those with the greatest absolute loading value) will be at the bottom of the plot. It can generate a few different types of plot depending on the context. If the sparse variant of a method is used, only the selected variables will be shown.***
 
 These are the genes that most contribute to the XY variate plots and the decision boundary above: 
 
 ```{r}
-plotLoadings(spls.da.rna.covid, comp = 1, ndisplay = 15, title = "Genes selected by sparse PLS for comp 1")
+plotLoadings(final.splsda.rna.covid, comp = 1, title = "Genes selected by sparse PLS for comp 1")
+plotLoadings(final.splsda.rna.covid, comp = 2, title = "Genes selected by sparse PLS for comp 2")
+
 ```
 
 
 ```{r, fig.height=9, fig.width=9}
-plotVar(spls.da.rna.covid, cutoff = 0.65, cex = c(2.5), title = "Genes highly correlated with component 1 and 2")
+plotVar(final.splsda.rna.covid, cutoff = 0.65, cex = c(3.5), title = "Genes highly correlated with component 1 and 2")
 ```
 
 ```{r, fig.height=9, fig.width=9}
-
-cim(spls.da.rna.covid, comp=1 )
+legend = list(legend = levels(meta_4$cohort_status),
+              col = unique(color.mixo(as.factor(meta_4$cohort_status))),
+              title = "COVID status",
+              cex = 0.7)
+cim(final.splsda.rna.covid, 
+    row.sideColors = color.mixo(as.factor(meta_4$cohort_status)), 
+    legend = legend)
 ```
-#### Proteomics 
-
-These are the proteins that most contribute to the XY variate plots and the decision boundary above: 
 
 ```{r}
-plotLoadings(spls.da.pro.covid, comp = 1, ndisplay = 15, title = "Proteins selected by sparse PLS for comp 1")
+auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 1)  # AUC using just 1 component
+auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 2)  # AUC using 2 components 
 ```
-```{r, fig.height=9, fig.width=9}
 
-cim(spls.da.pro.covid, comp=1 )
-```
 
 ### Multiblock sPLS-DA 
 
-Now that we've performed classification procedure with PLS for both RNA-seq and Proteomics data, let's combine both datasets into an N-integration multiblock model for our classification task and see if that improves performance further.  
+Let's combine both RNA-seq and Proteomic datasets into an N-integration multi-block model for our classification task.  This will allow us to examine correlated features between the datasets, even if classification accuracy does not improve.  
 
 ```{r}
 X <- list(rna = rna4, prot = prot4)
