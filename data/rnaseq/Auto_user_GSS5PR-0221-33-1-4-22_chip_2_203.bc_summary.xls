@@ -1,0 +1,9 @@
+Barcode ID	Sample Name	Mapped Reads	On Target	Targets Detected	Targets >= 1 reads	Target >= 2 reads
+IonCode_0109	1-4-22 chip 2 sample 1	1431037	90.28%	324	355	346
+IonCode_0110	1-4-22 chip 2 sample 2	1425144	90.74%	320	354	346
+IonCode_0111	1-4-22 chip 2 sample 3	1382046	91.23%	325	357	347
+IonCode_0112	1-4-22 chip 2 sample 4	1296074	90.92%	323	354	348
+IonCode_0113	1-4-22 chip 2 sample 5	1673173	89.37%	334	360	355
+IonCode_0114	1-4-22 chip 2 sample 6	1600947	92.02%	332	351	349
+IonCode_0115	1-4-22 chip 2 sample 7	1501382	92.91%	334	359	352
+IonCode_0116	1-4-22 chip 2 sample 8	1361079	88.83%	327	354	347
