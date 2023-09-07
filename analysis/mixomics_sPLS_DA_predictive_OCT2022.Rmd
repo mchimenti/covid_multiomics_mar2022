@@ -95,44 +95,15 @@ dim(prot3)
 ## The metadata categories are the same whether RNA or Plasma 
 meta_3 <- meta_3 <- meta[meta$master_key %in% match & meta$sample_type=="RNA",]
 
+## Make cohort names appropriate for plotting and match MS descriptions 
+cohort3 <- as.factor(meta_3$cohort_status)
+levels(cohort3) <- c("Inpatient_COVID19_Neg","Severe_COVID19","Moderate_COVID19","Mild_COVID19")
+meta_3$cohort_name <- cohort3
+
 ## Sanity check 
 rownames(rna3) == meta_3$master_key
 rownames(prot3) == meta_3$master_key
 ```
-
-### Initial sPLS-DA model 
-
-For starters, we'll include the COVID NEG samples just to see how the model looks: 
-
-```{r}
-spls.da.rna.covid <- splsda(X=rna3, Y=meta_3$cohort_status, ncomp=10)
-spls.da.pro.covid <- splsda(X=prot3, Y=meta_3$cohort_status, ncomp=10)
-
-```
-
-```{r}
-# plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
-plotIndiv(spls.da.rna.covid , comp = 1:2, 
-          group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
-          ellipse = TRUE, # include 95% confidence ellipse for each class
-          legend = TRUE, title = 'RNA-seq PLSDA with confidence ellipses')
-
-
-plotIndiv(spls.da.pro.covid , comp = 1:2, 
-          group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
-          ellipse = TRUE, # include 95% confidence ellipse for each class
-          legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
-
-# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
-background = background.predict(spls.da.rna.covid, comp.predicted=2, dist = "max.dist")
-
-# plot the samples projected onto the first two components of the PLS-DA subspace
-plotIndiv(spls.da.rna.covid, comp = 1:2, rep.space = "XY-variate",
-          group = meta_3$cohort_status, ind.names = FALSE, # colour points by class
-          background = background, # include prediction background for each class
-          legend = TRUE, title = " (b) PLSDA with prediction background")
-```
-
 ### Removing Covid NEG samples
 
 ```{r}
@@ -140,6 +111,10 @@ mask <- meta_3$covid_status != "NEG"
 rna4 <- rna3[mask,]
 prot4 <- prot3[mask,]
 meta_4 <- meta_3[mask,]
+
+cohort4 <- as.factor(meta_4$cohort_status)
+levels(cohort4) <- c("Severe_COVID19","Moderate_COVID19","Mild_COVID19")
+meta_4$cohort_name <- cohort4
 
 ## check dimensions match 
 dim(rna4)
@@ -150,11 +125,63 @@ rownames(rna4) == meta_4$master_key
 rownames(prot4) == meta_4$master_key
 ```
 
+
+### Initial sPLS-DA model 
+
+For starters, we'll include the COVID NEG samples just to see how the model looks: 
+
+```{r}
+spls.da.rna.covid <- splsda(X=rna3, Y=meta_3$cohort_name, ncomp=10)
+#spls.da.pro.covid <- splsda(X=prot3, Y=meta_3$cohort_status, ncomp=10)
+
+```
+
+```{r}
+# plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
+#plotIndiv(spls.da.rna.covid , comp = 1:2, 
+          #group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
+          #ellipse = TRUE, # include 95% confidence ellipse for each class
+          #legend = TRUE, title = 'RNA-seq PLSDA with confidence ellipses')
+
+
+#plotIndiv(spls.da.pro.covid , comp = 1:2, 
+          #group = meta_3$cohort_status, ind.names = FALSE,  # colour points by class
+          #ellipse = TRUE, # include 95% confidence ellipse for each class
+          #legend = TRUE, title = 'Proteome PLSDA with confidence ellipses')
+
+# use the max.dist measure to form decision boundaries between classes based on PLS-DA data
+background = background.predict(spls.da.rna.covid, comp.predicted=2, dist = "max.dist")
+
+# plot the samples projected onto the first two components of the PLS-DA subspace
+p1 <- plotIndiv(spls.da.rna.covid, comp = 1:2, 
+                rep.space = "XY-variate",
+                group = meta_3$cohort_name, ind.names = FALSE, # colour points by class
+                background = background, # include prediction background for each class
+                legend = TRUE, 
+                title = "",
+                style='ggplot2',
+                col.per.group = c("green","orange","blue","gray")) 
+
+p2 <- plotIndiv(spls.da.rna.covid, comp = 1:2, 
+                rep.space = "XY-variate",
+                group = meta_3$cohort_name, ind.names = FALSE, # colour points by class
+                background = background, # include prediction background for each class
+                legend = FALSE, 
+                title = "",
+                style='ggplot2',
+                col.per.group = c("green","orange","blue","gray")) 
+
+#ggsave(here("images","splsda_rna_XYplot_forMS"), plot = p1$graph, device = "png", dpi = 600, width = 7, height = 7, units = 'in')
+#ggsave(here("images","splsda_rna_XYplot_noLEG_forMS"), plot = p2$graph, device = "png", dpi = 600, width = 7, height = 7, units = 'in')
+```
+
+
+
 ### RNA sPLS-DA model tuning  
 
 
 ```{r}
-spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status, ncomp=10)
+spls.da.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_name, ncomp=10)
 ```
 
 ### Tune number of comps 
@@ -196,15 +223,19 @@ The "ncomps" recommended by performance tuning (N=5) and by feature selection tu
 
 ```{r}
 optimal.ncomp <- tune.splsda.rna.covid$choice.ncomp$ncomp 
-optimal.keepX <- tune.splsda.rna.covid$choice.keepX[1:optimal.ncomp]
+
+### I am going to fix the keepX at c(40,50) for consistency.  That was the optimal keepX for the first run. 
+### Optimal keepX values fluctuate between 10-100 for each comp.  
+
+#optimal.keepX <- tune.splsda.rna.covid$choice.keepX[1:optimal.ncomp]
 ```
 
 ### Final RNA sPLS-DA model 
 
 ```{r}
-final.splsda.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status,
-                                 ncomp = optimal.ncomp,
-                                 keepX = optimal.keepX)
+final.splsda.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_name,
+                                 ncomp = 2,
+                                 keepX = c(40,50))
 ```
 
 
@@ -214,10 +245,10 @@ final.splsda.rna.covid <- splsda(X=rna4, Y=meta_4$cohort_status,
 
 ```{r}
 # plot the samples projected onto the first two components of the PLS-DA subspace from RNA-seq data
-plotIndiv(final.splsda.rna.covid , comp = c(1,2), rep.space = "XY-variate",
-          group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
-          ellipse = TRUE, # include 95% confidence ellipse for each class
-          legend = TRUE, title = 'RNA-seq sPLS-DA projection in XY space')
+#plotIndiv(final.splsda.rna.covid , comp = c(1,2), rep.space = "XY-variate",
+         # group = meta_4$cohort_status, ind.names = FALSE,  # colour points by class
+        #  ellipse = TRUE, # include 95% confidence ellipse for each class
+        #  legend = TRUE, title = 'RNA-seq sPLS-DA projection in XY space')
 
 
 ```
@@ -227,10 +258,23 @@ plotIndiv(final.splsda.rna.covid , comp = c(1,2), rep.space = "XY-variate",
 background_rna = background.predict(final.splsda.rna.covid, comp.predicted=2, dist = "max.dist")
 
 # plot the samples projected onto the first two components of the PLS-DA subspace
-plotIndiv(final.splsda.rna.covid, comp = 1:2, rep.space = "XY-variate",
-          group = meta_4$cohort_status, ind.names = FALSE, # colour points by class
+p3 <- plotIndiv(final.splsda.rna.covid, comp = 1:2, rep.space = "XY-variate",
+          group = meta_4$cohort_name, ind.names = FALSE, # colour points by class
           background = background_rna, # include prediction background for each class
-          legend = TRUE, title = " RNA-seq sPLS-DA with decision boundary")
+          legend = TRUE, title = "",  style='ggplot2',
+          col.per.group = c("orange","blue","gray"), pch = c(2,3,4)) 
+
+p4 <- plotIndiv(final.splsda.rna.covid, comp = 1:2, rep.space = "XY-variate",
+          group = meta_4$cohort_name, ind.names = FALSE, # colour points by class
+          background = background_rna, # include prediction background for each class
+          legend = FALSE, title = "",  style='ggplot2',
+          col.per.group = c("orange","blue","gray"), pch = c(2,3,4)) 
+
+ggsave(here("images","splsda_rna_XYplot_noNEG_forMS.png"), plot = p3$graph, 
+       device = "png", dpi = 600, width = 7, height = 7, units = 'in')
+
+ggsave(here("images","splsda_rna_XYplot_noNEG_noLEG_forMS.png"), plot = p4$graph, 
+       device = "png", dpi = 600, width = 7, height = 7, units = 'in')
 
 ```
 
@@ -239,8 +283,14 @@ In this plot, we can see the samples in the PLS reduction to first 2 components,
 looking at the mean of XY coordinates together.  This is similar to PCA, but because of the 
 Discriminant Analysis (DA), we have a decision boundary space that predicts sample types.  
 
+When undergoing most dimension reduction methods in the mixOmics package, latent components are produced. These latent components are defined by their
+corresponding loading vectors, which are vectors with the weight of each original variable's contribution to the corresponding latent component. 
 
-***When undergoing most dimension reduction methods in the mixOmics package, latent components are produced. These latent components are defined by their corresponding loading vectors, which are vectors with the weight of each original variable's contribution to the corresponding latent component. Greater absolute values in this loading vector means that a given variable has a greater “importance”.The plotLoadings() function allows for the visualisation of this importance using a bar plot, where the most relevant original variables (those with the greatest absolute loading value) will be at the bottom of the plot. It can generate a few different types of plot depending on the context. If the sparse variant of a method is used, only the selected variables will be shown.***
+Greater absolute values in this loading vector means that a given variable has a greater “importance”. The plotLoadings() function allows for the 
+visualisation of this importance using a bar plot, where the most relevant original variables (those with the greatest absolute loading value) will be at the
+bottom of the plot. 
+
+It can generate a few different types of plot depending on the context. If the sparse variant of a method is used, only the selected variables will be shown.
 
 These are the genes that most contribute to the XY variate plots and the decision boundary above: 
 
@@ -260,14 +310,21 @@ legend = list(legend = levels(meta_4$cohort_status),
               col = unique(color.mixo(as.factor(meta_4$cohort_status))),
               title = "COVID status",
               cex = 0.7)
-cim(final.splsda.rna.covid, 
+cim(final.splsda.rna.covid,
     row.sideColors = color.mixo(as.factor(meta_4$cohort_status)), 
     legend = legend)
 ```
 
 ```{r}
-auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 1)  # AUC using just 1 component
+#auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 1)  # AUC using just 1 component
 auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 2)  # AUC using 2 components 
+
+p_auc <- auc.splsda.rna.covid$graph.Comp2
+p_auc <- p_auc + scale_color_manual(values=c("grey","blue","orange"))
+# severe = orange, moderate = blue, mild = grey 
+
+ggsave(here("images","splsda_rna_AUCplot.png"), plot = p_auc, 
+       device = "png", dpi = 600, width = 9, height = 9, units = 'in')
 ```
 
 
@@ -275,15 +332,29 @@ auc.splsda.rna.covid <- auroc(final.splsda.rna.covid, roc.comp = 2)  # AUC using
 
 Let's combine both RNA-seq and Proteomic datasets into an N-integration multi-block model for our classification task.  This will allow us to examine correlated features between the datasets, even if classification accuracy does not improve.  
 
+
+### Setup input datasets
+
 ```{r}
 X <- list(rna = rna4, prot = prot4)
-Y <- meta_4$cohort_status
-
-list.keepX = list(rna = c(20,20), prot = c(20, 20)) 
-
-des <- matrix(data = c(0,0.5,0.5,0), nrow=2, ncol=2)
-diablo.covid <- block.splsda(X=X, Y=Y, ncomp=5, keepX=list.keepX, design = des)
+Y <- meta_4$cohort_name
 ```
+
+### Design matrix 
+
+We will set the design matrix to off diagonal values of 0.1 (prioritize classification performance over correlations).
+
+```{r}
+des <- matrix(data = c(0,0.1,0.1,0), nrow=2, ncol=2)
+```
+
+### Initial model for testing 
+
+```{r}
+diablo.covid <- block.splsda(X=X, Y=Y, ncomp=10, design = des)
+```
+
+### Performance testing 
 
 ```{r}
 # run component number tuning with repeated CV
@@ -300,42 +371,61 @@ ncomp = perf.diablo$choice.ncomp$WeightedVote["Overall.BER", "centroids.dist"]
 perf.diablo$choice.ncomp$WeightedVote 
 ```
 
+### Tuning features to keep 
+
+This section takes a long time to run!  
+
 ```{r}
 # set grid of values for each component to test
-test.keepX = list (rna = c(5:9, seq(10, 18, 2), seq(20,30,5)), 
-                   prot = c(5:9, seq(10, 18, 2), seq(20,30,5)))
+test.keepX = list (rna = c(5:9, seq(10, 18, 4), seq(20,30,5)), 
+                   prot = c(5:9, seq(10, 18, 4), seq(20,30,5)))
 
-BPPARAM <- BiocParallel::MulticoreParam(workers = parallel::detectCores()-2)
+BPPARAM <- BiocParallel::MulticoreParam(workers = parallel::detectCores()-1)
 # run the feature selection tuning
 tune.diablo = tune.block.splsda(X = X, Y = Y, ncomp = ncomp, 
                               test.keepX = test.keepX, design = des,
                               validation = 'Mfold', 
                               folds = 5, 
-                              nrepeat = 20,
+                              nrepeat = 10,
                               dist = "centroids.dist",
                               BPPARAM = BPPARAM)
 
 plot(tune.diablo)
 list.keepX = tune.diablo$choice.keepX # set the optimal values of features to retain
 list.keepX
+
+
 ```
 
+Feature tuning suggests fewer than 8 components will be fine.  Performance testing of the final model shows that ncomp=3 is as good as ncomp=5 or more. 
 
 ```{r}
-final.diablo.covid = block.splsda(X=X, Y=Y, ncomp=2, keepX=list.keepX,design=des)
+optimal.ncomp <- 4
+optimal.keepX <- list(rna=tune.diablo$choice.keepX$rna[1:optimal.ncomp], prot=tune.diablo$choice.keepX$prot[1:optimal.ncomp])
 ```
-### Testing performance 
+
+### Final model 
+
+```{r}
+
+### Two blocks, 'optimal.ncomp' components each 
+prefinal.diablo.covid = block.splsda(X=X, 
+                                  Y=Y, 
+                                  ncomp=optimal.ncomp, 
+                                  keepX=optimal.keepX, 
+                                  design=des)
+```
+
+### Testing final model performance 
 
 ```{r}
 # run repeated CV performance evaluation
 
-
-perf.diablo = perf(final.diablo.covid, 
+perf.diablo = perf(prefinal.diablo.covid, 
                    validation = 'Mfold', 
                    progressBar = TRUE,
                    folds = 5, 
-                   nrepeat = 20, 
-                   ncpus=4, 
+                   nrepeat = 40, 
                    dist = "centroids.dist",
                    BPPARAM = BPPARAM) 
 
@@ -344,32 +434,103 @@ perf.diablo$WeightedVote.error.rate
 ```
 
 
-
+```{r}
+#We used four components in constructing the final DIABLO model, retaining (20, 25, 25, 25) and (5, 7, 5, 5) features
+optimal.ncomp <- 4
+#optimal.keepX <- list(rna=tune.diablo$choice.keepX$rna[1:optimal.ncomp], prot=tune.diablo$choice.keepX$prot[1:optimal.ncomp])
+optimal.keepX <- list(rna=c(20, 25, 25, 25), prot=c(5,7,5,5))
+### Two blocks, 'optimal.ncomp' components each 
+final.diablo.covid = block.splsda(X=X, 
+                                  Y=Y, 
+                                  ncomp=optimal.ncomp, 
+                                  keepX=optimal.keepX, 
+                                  design=des)
+```
 
 ```{r}
 plotDiablo(final.diablo.covid, ncomp=1)
 plotDiablo(final.diablo.covid, ncomp=2)
+plotDiablo(final.diablo.covid, ncomp=3)
+plotDiablo(final.diablo.covid, ncomp=4)
 ```
 
 ```{r}
-plotIndiv(final.diablo.covid, ind.names = FALSE, legend=TRUE, title="Diablo Block PLots")
+
+p5 <- plotIndiv(final.diablo.covid, blocks = 'weighted.average', comp = c(1,2), ellipse.level = 0.85, 
+          ind.names = FALSE, legend=TRUE, ellipse = TRUE, title = "", style='ggplot2',
+          col.per.group = c("orange","blue","gray"), pch = c(2,3,4)) 
+
+
+ggsave(here("images","DIABLO_XYplot_noNEG_forMS.png"), plot = p5$graph, 
+       device = "png", dpi = 600, width = 7, height = 7, units = 'in')
+
+
 ```
+
 
 ```{r}
-plotArrow(final.diablo.covid, legend=TRUE, title="DIABLO arrow plot")
-```
-***In the arrow plot above, the start of the arrow indicates the centroid between all data sets for a given sample and the tips of the arrows indicate the location of that sample in each block. Such graphics highlight the agreement between all data sets at the sample level.***
+plotLoadings(final.diablo.covid,
+             comp = 1, 
+             size.legend = 0.5, size.name = 0.6, ndisplay = 20)
 
-Outpatient covid has better agreement between centroid of model components and individual datasets.  There is a subset of Covid Pos Inpatient that also has higher agreement, and several samples have lower agreement (s24_day3, s22_day1, s23_day1, etc...)
+plotLoadings(final.diablo.covid,
+             comp = 2, 
+             size.legend = 0.5, size.name = 0.6, ndisplay = 20)
+
+
+```
+### Extract all retained features for pathway and GO analysis 
+
+```{r}
+comp = 1:optimal.ncomp
+
+all_feats <- list()
+
+for (i in 1:length(comp)) {
+  feats <- names(which(final.diablo.covid$loadings$rna[, i] != 0))
+  all_feats <- c(feats, all_feats)
+}
+  
+rna_feats <- unlist(all_feats)
+write.csv(rna_feats, file = here("data", "diablo_keepX_RNA.csv"), row.names = FALSE, quote = FALSE)
+
+#####
+
+all_feats <- list()
+
+for (i in 1:length(comp)) {
+  feats <- names(which(final.diablo.covid$loadings$prot[, i] != 0))
+  all_feats <- c(feats, all_feats)
+}
+
+prot_feats <- unlist(all_feats)
+write.csv(prot_feats, file = here("data","diablo_keepX_PROT.csv"), row.names=FALSE, quote=FALSE)
+
+```
+
+
+
 
 ```{r, fig.width=9,fig.height=9,dpi=300}
-circosPlot(final.diablo.covid, cutoff = 0.55, line = TRUE,
+circosPlot(final.diablo.covid, 
+           comp = 1:2,
+           cutoff = 0.55, 
+           line = FALSE,
            color.blocks= c('darkorchid', 'lightgreen'), 
-           size.labels = 2, size.variables = 0.75)
+           size.labels = 2.5, 
+           size.variables = 1,
+           color.Y = c('red','blue','green'),
+           color.cor = c("red","gray"))
 ```
 
 ```{r, fig.height=11,fig.width=11,dpi=200}
-cimDiablo(final.diablo.covid, margins = c(5,5))
+
+
+cimDiablo(final.diablo.covid, 
+          margins = c(5,5), 
+          row.names = FALSE, col.names = TRUE, 
+          comp=c(1,2), legend.position = NA, 
+          color.Y = c("gray","orange","blue"))
 ```
 
 
@@ -383,5 +544,9 @@ auc.splsda = auroc(final.diablo.covid, roc.block = "prot",
 auc.splsda = auroc(final.diablo.covid, roc.block = "rna", 
                    roc.comp = 2, print = FALSE)
 
+```
+
+```{r}
+network(final.diablo.covid, cutoff = 0.68, block.var.names = TRUE)
 ```
 

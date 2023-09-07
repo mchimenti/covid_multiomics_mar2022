@@ -14,3 +14,6 @@ analysis/.DS_Store
 *.log
 *.jpg
 *.bgz
+*.docx
+*.pptx
+processed_data/SPEF2_table.csv
