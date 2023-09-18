@@ -1,0 +1,192 @@
+---
+title: "Box Plots of RNA-seq gene expression for manuscript Sept 2023"
+output: 
+  html_document:
+    df_print: paged
+    fig_width: 9
+    fig_height: 7
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    number_sections: true
+author: Michael Chimenti
+date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Introduction 
+
+Boxplots for Figure 1 on the Covid multiomics manuscript
+
+
+## Imports
+
+```{r libraries, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(mixOmics)
+
+here::i_am("analysis/boxplots_figure1_sept23.Rmd")
+```
+
+## Load data 
+
+```{r}
+
+rna <- readr::read_csv(here("data","munged_data","rnaseq_samples_in_rows_normalized.csv"))
+prot <- readr::read_csv(here("data","munged_data","proteomics_PLAS_ONLY_samples_in_rows_norm_NAMEFIX.csv"))
+meta <- readr::read_csv(here("data","munged_data","metadata_masterkey.csv"))
+
+```
+
+```{r}
+new_name <- rna$name %>% str_split(., pattern="-", simplify = TRUE) %>% paste0("RL_SARS_",.)
+new_name <- new_name[1:length(rna$name)]
+rna$sample_ID <- new_name 
+
+prot <- prot %>% rename(sample_ID=Assay)
+
+### There are 76 of 168 total proteomic datasets (we are excluding saliva datasets from consideration which is the reason for the mismatch)
+sum(prot$sample_ID %in% meta$sample_ID)
+
+###  There are 97 of 97 RNAseq files specified in meta 
+                        #number of RNA files in meta  == #samples in rna found in meta 
+assertthat::assert_that(sum(meta$sample_type == "RNA") == sum(rna$sample_ID %in% meta$sample_ID))
+
+
+### Each data table needs a "master key" to determine sample of origin, without regards to data type 
+master_key_dict <- meta %>% dplyr::select(c(sample_ID, master_key, cohort_status, sex))
+prot2 <- left_join(prot, master_key_dict, by="sample_ID") %>% drop_na()
+rna2 <- left_join(rna, master_key_dict, by="sample_ID") %>% 
+  dplyr::select(c('name','sample_ID','master_key', 'cohort_status', 'sex'), everything())
+
+match <- intersect(prot2$master_key, rna2$master_key)
+
+rna3 <- rna2[rna2$master_key %in% match,] 
+rna3 <- rna3 %>%
+  filter(!cohort_status %in% "Covid_Neg_Inpatient") %>%
+  mutate(covid_severe = case_when(cohort_status == "Covid_Pos_Inpatient" ~ "Moderate_COVID19",
+                                  cohort_status == "Covid_Pos_Outpatient" ~ "Mild_COVID19",
+                                  cohort_status == "Covid_Pos_ICU" ~ "Severe_COVID19"), .before = "cohort_status")
+dim(rna3)
+```
+
+S100A9, CLEC4C, HLA-B, ARG1, KRT5, IFNA17
+
+```{r}
+library(ggpubr)
+
+my_comps <- list(c("Severe_COVID19","Mild_COVID19"), c("Moderate_COVID19", "Mild_COVID19"))
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "S100A9",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "S100A9", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "S100A9",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "S100A9", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+```
+
+
+
+
+```{r}
+p <- ggboxplot(rna3, x = "covid_severe", y = "CLEC4C",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "CLEC4C", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "CLEC4C",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "CLEC4C", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+```
+```{r}
+p <- ggboxplot(rna3, x = "covid_severe", y = "`HLA-B`",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "HLA-B", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "`HLA-B`",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "HLA-B", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+```
+```{r}
+p <- ggboxplot(rna3, x = "covid_severe", y = "ARG1",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "ARG1", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "ARG1",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "ARG1", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+```
+```{r}
+p <- ggboxplot(rna3, x = "covid_severe", y = "KRT5",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "KRT5", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "KRT5",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "KRT5", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+```
+
+
+```{r}
+p <- ggboxplot(rna3, x = "covid_severe", y = "IFNA17",
+              color = "covid_severe", facet.by = "sex", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "IFNA17", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+
+
+p <- ggboxplot(rna3, x = "covid_severe", y = "IFNA17",
+              color = "covid_severe", add = "jitter",
+              palette =c("orange","blue","gray"), xlab = "Covid Severity", 
+              ylab = "Normalized RNA-seq counts", title = "IFNA17", repel = TRUE)
+
+p + stat_compare_means(comparisons = my_comps, method = "wilcox.test")  + theme(axis.text.x = element_text(angle = 45, size = 9, vjust = 0.7, hjust=0.7))
+```
+
+```{r}
+sessionInfo()
+```
+

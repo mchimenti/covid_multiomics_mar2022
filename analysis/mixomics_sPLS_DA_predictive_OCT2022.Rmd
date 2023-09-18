@@ -386,7 +386,7 @@ tune.diablo = tune.block.splsda(X = X, Y = Y, ncomp = ncomp,
                               test.keepX = test.keepX, design = des,
                               validation = 'Mfold', 
                               folds = 5, 
-                              nrepeat = 10,
+                              nrepeat = 5,
                               dist = "centroids.dist",
                               BPPARAM = BPPARAM)
 
@@ -530,7 +530,7 @@ cimDiablo(final.diablo.covid,
           margins = c(5,5), 
           row.names = FALSE, col.names = TRUE, 
           comp=c(1,2), legend.position = NA, 
-          color.Y = c("gray","orange","blue"))
+          color.Y = c("orange","blue","gray"))
 ```
 
 
